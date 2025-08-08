@@ -1,0 +1,32 @@
+RFID Kiosk – Manual Reset (Testing) Enabled
+
+1) Sheets
+   - Create Google Sheet: “RFID Attendance System”
+   - Tabs:
+     * TagMapping:  A: Tag ID | B: Name
+     * Status:      A: Tag ID | B: Name | C: Status | D: Last Swipe Time
+     * Log:         A: Timestamp | B: Tag ID | C: Name | D: Action
+
+2) Apps Script
+   - Extensions → Apps Script
+   - Paste Code.gs (this package) and set ADMIN_TOKEN to a long random value
+   - Save → Deploy → New deployment → Web app
+     * Execute as: Me
+     * Who has access: Anyone
+   - Copy the Web App URL
+
+3) Kiosk App (index.html)
+   - Open the HTML (GitHub Pages or Chrome App)
+   - In “Admin Tools”, paste the Web App URL
+   - Enter the Admin Token (same as in Code.gs) when running Manual Reset
+   - Click “Save Settings”
+
+4) Testing
+   - Swipe a tag: should toggle IN/OUT and log to Sheets
+   - Click “Run Manual Reset”: should auto-checkout any users still IN
+   - In Sheets, verify “Status” updated and “Log” shows “auto-checkout” entries
+
+5) Production
+   - Remove the on-page token field (or leave it empty) when done testing
+   - Add a time-driven trigger for midnightReset in Apps Script
+   - Rotate ADMIN_TOKEN (optional) and keep it secret

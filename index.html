@@ -1,117 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>RFID Sign In/Out</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#111; color:#eee; display:flex; min-height:100vh; align-items:center; justify-content:center; }
-    .card { background:#1b1b1b; padding:32px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.35); width:min(680px, 90vw); }
-    h1 { margin:0 0 12px; font-weight:600; font-size:28px; }
-    .status { margin:8px 0 20px; font-size:18px; opacity:.9; min-height:24px; }
-    .hidden-input { position:absolute; left:-9999px; }
-    .row { display:flex; gap:12px; margin-top:10px; }
-    button { padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-size:16px; }
-    .primary { background:#2d7ef7; color:white; }
-    .ghost { background:#2a2a2a; color:#ddd; }
-    .admin { margin-top:18px; padding-top:16px; border-top:1px solid #333; opacity:0.95; }
-    label { display:block; margin-top:8px; font-size:14px; color:#bbb; }
-    input[type="password"], input[type="text"] { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #333; background:#0f0f0f; color:#eee; }
-    small { color:#888; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RFID Attendance Kiosk</title>
+<style>
+  :root{--bg:#0e1116;--card:#151a21;--muted:#9fb0c3;--ok:#2ecc71;--out:#f39c12;--err:#e74c3c;--accent:#2d7ef7;}
+  html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
+  .card{width:min(1000px,96vw);background:var(--card);border:1px solid #202835;border-radius:22px;padding:4vh 4vw;box-shadow:0 30px 80px rgba(0,0,0,.35);position:relative}
+  .brand{position:absolute;top:18px;left:24px;color:var(--muted);font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+  .gear{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:12px;border:1px solid #243041;display:grid;place-items:center;color:#cfd9e6;background:#11161d;cursor:pointer}
+  .gear:hover{background:#0f141b}
+  .title{font-size:clamp(32px,4.2vw,56px);margin:18px 0 10px;font-weight:800;letter-spacing:.02em}
+  .status{margin:18px 0 10px;font-size:clamp(32px,4vw,50px);font-weight:800;line-height:1.15}
+  .status.ok{color:var(--ok)} .status.out{color:var(--out)} .status.err{color:var(--err)}
+  .hint{font-size:clamp(16px,1.8vw,18px);color:var(--muted)}
+  .last{margin-top:14px;color:#b7c6d8;font-size:clamp(14px,1.6vw,16px)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+  button{font-size:18px;padding:12px 16px;border-radius:12px;border:1px solid #263246;background:#18202b;color:#e8eef4;cursor:pointer}
+  button.primary{background:var(--accent);border-color:#2b6fe0}
+  button:hover{filter:brightness(1.08)}
+  .hidden-input{position:absolute;left:-9999px;top:-9999px}
+  .flash{animation:flash 600ms ease}
+  @keyframes flash{0%{box-shadow:0 0 0 0 rgba(46,204,113,0)}40%{box-shadow:0 0 0 10px rgba(46,204,113,.25)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
+  .flash-out{animation:flashOut 600ms ease}
+  @keyframes flashOut{0%{box-shadow:0 0 0 0 rgba(243,156,18,0)}40%{box-shadow:0 0 0 10px rgba(243,156,18,.25)}100%{box-shadow:0 0 0 0 rgba(243,156,18,0)}}
+  .flash-err{animation:flashErr 700ms ease}
+  @keyframes flashErr{0%{box-shadow:0 0 0 0 rgba(231,76,60,0)}40%{box-shadow:0 0 0 12px rgba(231,76,60,.25)}100%{box-shadow:0 0 0 0 rgba(231,76,60,0)}}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:6vh 3vw;z-index:9999}
+  .modal .panel{width:min(800px,96vw);background:#121720;border:1px solid #1f2a3a;border-radius:18px;padding:24px}
+  .modal h2{margin:0 0 6px;font-size:28px}
+  .modal label{display:block;margin-top:12px;color:#cfd9e6}
+  .modal input[type=text],.modal input[type=password],.modal textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
+  .muted{color:var(--muted);font-size:14px}
+  .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Swipe Your Keyfob</h1>
-    <div class="status" id="message">Waiting for swipe…</div>
-
-    <input id="rfid" class="hidden-input" autofocus />
-
-    <div class="row">
-      <button class="ghost" id="focusBtn" title="Refocus scanner input">Refocus</button>
-      <button class="ghost" id="clearBtn">Clear Message</button>
-    </div>
-
-    <div class="admin">
-      <h3 style="margin:8px 0;">Admin Tools (Testing)</h3>
-      <label for="scriptUrl">Apps Script Web App URL</label>
-      <input id="scriptUrl" type="text" placeholder="https://script.google.com/macros/s/ABC123/exec" />
-
-      <label for="token">Admin Token <small>(temporary; used to run manual reset)</small></label>
-      <input id="token" type="password" placeholder="Enter admin token" />
-
+  <div class="wrap">
+    <div class="card" id="card">
+      <div class="brand">RFID Attendance</div>
+      <button class="gear" id="btnGear" title="Admin">⚙</button>
+      <div class="title">Swipe Your Keyfob</div>
+      <div id="status" class="status">Waiting for swipe…</div>
+      <div class="hint">Hold your fob to the reader. You don’t need to touch the screen.</div>
+      <div id="netWarn" style="display:none;margin-top:8px;padding:8px 12px;border:1px solid #5a3a00;border-radius:10px;background:#2a1d00;color:#ffd9a1;font-size:16px;">
+        Network seems offline or slow. We’ll keep trying in the background…
+      </div>
+      <div class="last" id="last"></div>
+      <input id="rfidHidden" class="hidden-input" autofocus />
       <div class="row">
-        <button class="primary" id="saveBtn">Save Settings</button>
-        <button class="ghost" id="resetBtn">Run Manual Reset (auto-checkout)</button>
+        <button id="btnRefocus">Refocus Scanner</button>
+        <button id="btnFullscreen">Full Screen</button>
       </div>
     </div>
   </div>
 
-  <script>
-    const input   = document.getElementById('rfid');
-    const msg     = document.getElementById('message');
-    const urlEl   = document.getElementById('scriptUrl');
-    const tokenEl = document.getElementById('token');
+<script>
+  // ===== Config =====
+  const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec";
+  const DEFAULT_ADMIN_TOKEN = "asdfghjkl";
+  const ADMIN_UI_PIN = "1234";
+  const GAP_MS = 80;
+  const MAX_LEN = 128;
+  const REQ_TIMEOUT_MS = 8000;
 
-    // Load saved settings
-    urlEl.value   = localStorage.getItem('scriptUrl') || '';
-    tokenEl.value = '';
+  // ===== Elements =====
+  const card = document.getElementById("card");
+  const statusEl = document.getElementById("status");
+  const lastEl = document.getElementById("last");
+  const hiddenInput = document.getElementById("rfidHidden");
 
-    function focusInput(){ input.focus(); }
-    document.getElementById('focusBtn').addEventListener('click', focusInput);
-    document.getElementById('clearBtn').addEventListener('click', () => msg.textContent = 'Waiting for swipe…');
-    document.getElementById('saveBtn').addEventListener('click', () => {
-      if (!urlEl.value) { alert('Please enter the Apps Script Web App URL'); return; }
-      localStorage.setItem('scriptUrl', urlEl.value.trim());
-      msg.textContent = 'Settings saved.';
-    });
+  // ===== Persistence helpers =====
+  function getScriptUrl(){ return (localStorage.getItem("scriptUrl")||DEFAULT_SCRIPT_URL).trim(); }
+  function getAdminToken(){ return (localStorage.getItem("adminToken")||DEFAULT_ADMIN_TOKEN).trim(); }
 
-    // Manual reset button
-    document.getElementById('resetBtn').addEventListener('click', async () => {
-      const scriptUrl = (localStorage.getItem('scriptUrl') || urlEl.value || '').trim();
-      const token     = tokenEl.value.trim();
-      if (!scriptUrl) { alert('Enter and save the Apps Script Web App URL first.'); return; }
-      if (!token)     { alert('Enter the admin token.'); return; }
-      try {
-        const res = await fetch(scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ action:'reset', token })
-        });
-        const text = await res.text();
-        msg.textContent = text;
-      } catch (e) {
-        msg.textContent = 'Error running manual reset.';
-        console.error(e);
-      }
-    });
+  // ===== Normalizer =====
+  function normalizeTag(s){ return String(s||"").trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,""); }
 
-    // Swipe handling
-    focusInput();
-    document.body.addEventListener('click', focusInput);
-    input.addEventListener('keypress', async (e) => {
-      if (e.key === 'Enter') {
-        const scriptUrl = (localStorage.getItem('scriptUrl') || urlEl.value || '').trim();
-        if (!scriptUrl) { msg.textContent = 'Set the Apps Script Web App URL in Admin Tools.'; return; }
+  // ===== Submit to Apps Script =====
+  async function submitTag(raw){
+    const url = getScriptUrl();
+    const tag = normalizeTag(raw);
+    if(!tag) return;
+    showPending(`Swipe received… (${tag})`);
+    try{
+      const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({tag})});
+      const t=await r.text();
+      showResponse(t);
+      lastEl.textContent=`Last: ${new Date().toLocaleTimeString()}`;
+    }catch{ showError("Network error"); }
+  }
 
-        const tag = input.value.trim().replace(/\D/g, '');
-        input.value = '';
-        if (!tag) { msg.textContent = 'Invalid swipe.'; return; }
+  // ===== UI helpers =====
+  function showPending(t){ statusEl.textContent=t; statusEl.className="status"; }
+  function showResponse(text){
+    const t=String(text||"");
+    if(/Logged\s+in\b/i.test(t)){ statusEl.textContent=t; statusEl.className="status ok"; }
+    else if(/Logged\s+out\b/i.test(t)){ statusEl.textContent=t; statusEl.className="status out"; }
+    else{ statusEl.textContent=t||"Waiting for swipe…"; statusEl.className="status"; }
+  }
+  function showError(msg){ statusEl.textContent=msg; statusEl.className="status err"; }
 
-        try {
-          const res = await fetch(scriptUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ tag })
-          });
-          const text = await res.text();
-          msg.textContent = text;
-        } catch (err) {
-          msg.textContent = 'Error logging swipe.';
-          console.error(err);
-        }
-      }
-    });
-  </script>
+  // ===== Capture =====
+  let buf=""; let lastTs=0; let submitTimer=null;
+  function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=""; if(out) submitTag(out); }, GAP_MS); }
+  document.addEventListener("keydown",(evt)=>{ const now=performance.now(); const gap=now-lastTs; if(gap>GAP_MS) buf=""; lastTs=now; if(/^[A-Za-z0-9.\-]$/.test(evt.key)){ buf+=evt.key; scheduleIdleSubmit(); } else if(evt.key==="Enter"){ clearTimeout(submitTimer); const out=normalizeTag(buf); buf=""; if(out) submitTag(out); }});
+
+  // ===== Init =====
+  window.addEventListener("load",()=>{ hiddenInput.focus(); });
+</script>
 </body>
 </html>
+

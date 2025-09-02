@@ -44,15 +44,16 @@
 <body>
   <div class="wrap">
     <div class="card" id="card">
-      <div class="brand" id="brandText">Lindenwold Staff Sign In/Out</div>
+      <!-- These two lines clearly show the building -->
+      <div class="brand" id="brandText">Lindenwold HS Staff Sign In/Out</div>
       <button class="gear" id="btnGear" title="Admin">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
         </svg>
       </button>
 
-      <div class="title" id="titleText">Lindenwold Staff Sign In/Out</div>
+      <div class="title" id="titleText">Lindenwold HS Staff Sign In/Out</div>
       <div id="status" class="status">Waiting for swipe…</div>
       <div class="hint">Hold your fob to the reader. No need to touch the screen.</div>
       <div class="tiny" id="defaultNote"></div>
@@ -232,6 +233,7 @@
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
+    const site = getSiteKey(); // <<< SEND SITE KEY
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -239,12 +241,12 @@
     const t0 = performance.now();
 
     try{
-      const text = await tryFetchWithRetry(url, tag, 2, [300, 800]);
+      const text = await tryFetchWithRetry(url, { tag, site }, 2, [300, 800]);
       showResponse(text);
       lastEl.textContent = `Response in ${Math.round(performance.now()-t0)} ms — ${new Date().toLocaleTimeString()}`;
       setNetBanner();
     }catch(err){
-      const warmed = await warmAndRetry(url, tag).catch(()=>null);
+      const warmed = await warmAndRetry(url, { tag, site }).catch(()=>null);
       if (warmed) {
         showResponse(warmed);
         lastEl.textContent = `Recovered after warm-up — ${new Date().toLocaleTimeString()}`;
@@ -256,14 +258,14 @@
   }
 
   // Helper: fetch with timeout + retries
-  async function tryFetchWithRetry(url, tag, retries, backoffsMs){
+  async function tryFetchWithRetry(url, payload, retries, backoffsMs){
     const doPost = () => {
       const ctrl = new AbortController();
       const timer = setTimeout(()=>ctrl.abort(), REQ_TIMEOUT_MS);
       return fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({tag}),
+        body:new URLSearchParams(payload),
         signal: ctrl.signal
       }).finally(()=>clearTimeout(timer));
     };
@@ -287,13 +289,13 @@
   }
 
   // Helper: warm up with a GET, then try one last POST
-  async function warmAndRetry(url, tag){
+  async function warmAndRetry(url, payload){
     try{ await fetch(url, { method:'GET' }); }catch{}
     try{
       const r = await fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({tag})
+        body:new URLSearchParams(payload)
       });
       return await r.text();
     }catch(e){

@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lindenwold Staff Sign In</title>
+<title>Lindenwold Staff Sign In/Out</title>
 <style>
   :root{--bg:#0e1116;--card:#151a21;--muted:#9fb0c3;--ok:#2ecc71;--out:#f39c12;--err:#e74c3c;--accent:#2d7ef7;}
   html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
@@ -35,7 +35,7 @@
   .modal .panel{width:min(800px,96vw);background:#121720;border:1px solid #1f2a3a;border-radius:18px;padding:24px}
   .modal h2{margin:0 0 6px;font-size:28px}
   .modal label{display:block;margin-top:12px;color:#cfd9e6}
-  .modal input[type=text],.modal input[type=password],.modal textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
+  .modal input[type=text],.modal input[type=password],.modal textarea, .modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
   .muted{color:var(--muted);font-size:14px}
   .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   .tiny{font-size:12px;color:#93a6bd;margin-top:8px}
@@ -44,15 +44,15 @@
 <body>
   <div class="wrap">
     <div class="card" id="card">
-      <div class="brand">Lindenwold Staff Sign In</div>
+      <div class="brand" id="brandText">Lindenwold Staff Sign In/Out</div>
       <button class="gear" id="btnGear" title="Admin">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
         </svg>
       </button>
 
-      <div class="title">Lindenwold Staff Sign In</div>
+      <div class="title" id="titleText">Lindenwold Staff Sign In/Out</div>
       <div id="status" class="status">Waiting for swipe…</div>
       <div class="hint">Hold your fob to the reader. No need to touch the screen.</div>
       <div class="tiny" id="defaultNote"></div>
@@ -86,7 +86,17 @@
       </div>
 
       <div id="adminPanel" style="display:none; margin-top:16px;">
-        <label>Apps Script Web App URL
+        <label>Site (display name)</label>
+        <select id="siteSelect">
+          <option value="HS">Lindenwold HS Staff Sign In/Out</option>
+          <option value="MS">Lindenwold MS Staff Sign In/Out</option>
+          <option value="S4">Lindenwold S4 Staff Sign In/Out</option>
+          <option value="S5">Lindenwold S5 Staff Sign In/Out</option>
+          <option value="ECC">Lindenwold ECC Staff Sign In/Out</option>
+          <option value="DIST">Lindenwold Staff Sign In/Out (District)</option>
+        </select>
+
+        <label style="margin-top:10px;">Apps Script Web App URL
           <input id="scriptUrl" type="text" placeholder="https://script.google.com/macros/s/XXXX/exec" />
         </label>
         <label>Admin Token (for Manual Reset)
@@ -104,19 +114,32 @@
   </div>
 
 <script>
+  // ===== Site presets =====
+  const SITES = {
+    HS:   'Lindenwold HS Staff Sign In/Out',
+    MS:   'Lindenwold MS Staff Sign In/Out',
+    S4:   'Lindenwold S4 Staff Sign In/Out',
+    S5:   'Lindenwold S5 Staff Sign In/Out',
+    ECC:  'Lindenwold ECC Staff Sign In/Out',
+    DIST: 'Lindenwold Staff Sign In/Out'
+  };
+  // Choose default by constant, URL (?site=HS), or Admin (localStorage)
+  const DEFAULT_SITE = 'HS';
+
   // ===== Defaults for this location (can be overridden in Admin) =====
-  const DEFAULT_SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
-  const DEFAULT_ADMIN_TOKEN  = 'asdfghjkl';
+  const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+  const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
 
   // ===== Config =====
-  const ADMIN_UI_PIN = '1234';        // change if you like
-  const GAP_MS = 80;                  // fast idle detection
+  const ADMIN_UI_PIN = '1234';
+  const GAP_MS = 80;
   const MAX_LEN = 128;
-  const REQ_TIMEOUT_MS = 8000;        // longer timeout
-  const AUTO_REFOCUS_MS = 20000;      // keep input focused every 20s
+  const REQ_TIMEOUT_MS = 8000;
+  const AUTO_REFOCUS_MS = 20000;
 
   // ===== Elements =====
-  const card = document.getElementById('card');
+  const brandEl = document.getElementById('brandText');
+  const titleEl = document.getElementById('titleText');
   const statusEl = document.getElementById('status');
   const lastEl = document.getElementById('last');
   const defaultNoteEl = document.getElementById('defaultNote');
@@ -136,8 +159,23 @@
   const btnManualReset = document.getElementById('btnManualReset');
   const btnTest = document.getElementById('btnTest');
   const activeUrlEl = document.getElementById('activeUrl');
+  const siteSelect = document.getElementById('siteSelect');
+  const card = document.getElementById('card');
 
   // ===== Persistence =====
+  function getQuerySite(){
+    const m = (location.search.match(/[?&]site=([^&]+)/i) || [])[1];
+    return m ? decodeURIComponent(m).toUpperCase() : '';
+  }
+  function getSiteKey(){
+    const fromQuery = getQuerySite();
+    if (fromQuery && SITES[fromQuery]) return fromQuery;
+    const stored = (localStorage.getItem('siteKey')||'').toUpperCase();
+    if (stored && SITES[stored]) return stored;
+    return DEFAULT_SITE;
+  }
+  function setSiteKey(k){ if(SITES[k]) localStorage.setItem('siteKey', k); renderSite(); }
+
   function getScriptUrl(){
     const fromUI = (urlEl && urlEl.value||'').trim();
     if (fromUI) return fromUI;
@@ -155,7 +193,15 @@
   function refreshActiveUrl(){ if(activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
   function renderDefaultNote(){
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
-    defaultNoteEl.textContent = usingDefaults ? 'Using default Lindenwold settings (can be changed in Admin).' : '';
+    defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
+  }
+
+  function renderSite(){
+    const key = getSiteKey();
+    const label = SITES[key] || SITES[DEFAULT_SITE];
+    brandEl.textContent = label;
+    titleEl.textContent = label;
+    if (siteSelect) siteSelect.value = key;
   }
 
   // Keep Apps Script warm (reduce cold start)
@@ -163,7 +209,7 @@
     const url = getScriptUrl();
     if (!url) return;
     fetch(url, { method: 'GET' }).catch(()=>{});
-  }, 60000); // every 60s
+  }, 60000);
 
   // Network banner
   function setNetBanner(){
@@ -189,17 +235,15 @@
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
-    // Show only masked staff number
     showPending(`Swipe received… (${maskTag(tag)})`);
     const t0 = performance.now();
 
     try{
-      const text = await tryFetchWithRetry(url, tag, 2, [300, 800]); // 2 retries
+      const text = await tryFetchWithRetry(url, tag, 2, [300, 800]);
       showResponse(text);
       lastEl.textContent = `Response in ${Math.round(performance.now()-t0)} ms — ${new Date().toLocaleTimeString()}`;
       setNetBanner();
     }catch(err){
-      // Final warm-up: GET then one more POST
       const warmed = await warmAndRetry(url, tag).catch(()=>null);
       if (warmed) {
         showResponse(warmed);
@@ -281,8 +325,9 @@
   function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=''; if(out) submitTag(out); }, GAP_MS); }
 
   document.addEventListener('keydown', (evt) => {
-    if(isEditable(evt.target) && evt.target.id!=='rfidHidden') return; // allow typing in Admin
-    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf=''; lastTs = now;
+    if(isEditable(evt.target) && evt.target.id!=='rfidHidden') return;
+    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf='';
+    lastTs = now;
     if(/^[A-Za-z0-9.\-]$/.test(evt.key)){ if(buf.length<MAX_LEN) buf += evt.key; scheduleIdleSubmit(); evt.preventDefault(); }
     else if(evt.key==='Enter' || evt.key==='Tab'){ clearTimeout(submitTimer); const out=normalizeTag(buf); buf=''; if(out) submitTag(out); evt.preventDefault(); }
   });
@@ -291,16 +336,13 @@
     if(e.key==='Enter' || e.key==='Tab'){ const out=normalizeTag(hiddenInput.value); hiddenInput.value=''; if(out) submitTag(out); e.preventDefault(); }
   });
 
-  // ===== Buttons =====
-  btnRefocus.onclick = () => { window.focus(); document.body.focus(); hiddenInput.focus(); showPending('Focused. Swipe your keyfob…'); };
-  btnFullscreen.onclick = () => { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen().catch(()=>{}); };
-
-  // ===== Admin modal (robust open/close) =====
+  // ===== Admin modal =====
   function openAdmin() {
     adminModal.style.display = 'flex';
     document.body.dataset.adminOpen = '1';
     urlEl.value = localStorage.getItem('scriptUrl') || '';
     tokEl.value = localStorage.getItem('adminToken') || '';
+    siteSelect.value = getSiteKey();
     adminPanel.style.display = 'none';
     pinInput.value = '';
     setTimeout(()=>pinInput.focus(),50);
@@ -327,13 +369,14 @@
     const v=(urlEl.value||'').trim(); if(!v) return alert('Enter your Apps Script Web App URL');
     setScriptUrl(v);
     setAdminToken((tokEl.value||'').trim());
+    setSiteKey(siteSelect.value);
     showPending('Settings saved. Waiting for swipe…');
     hiddenInput.focus();
   });
   btnClearSettings.addEventListener('click', () => {
-    localStorage.removeItem('scriptUrl'); localStorage.removeItem('adminToken');
-    urlEl.value=''; tokEl.value=''; refreshActiveUrl(); renderDefaultNote();
-    showPending('Settings cleared. Enter your Web App URL in Admin.');
+    localStorage.removeItem('scriptUrl'); localStorage.removeItem('adminToken'); localStorage.removeItem('siteKey');
+    urlEl.value=''; tokEl.value=''; siteSelect.value=DEFAULT_SITE; refreshActiveUrl(); renderDefaultNote(); renderSite();
+    showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
     const url = getScriptUrl(); const token = getAdminToken();
@@ -342,7 +385,7 @@
     showPending('Running manual reset…');
     try{
       const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token})});
-      showResponse(await r.text()); // “Already reset today.” or “Checked out N user(s).”
+      showResponse(await r.text());
     }catch{ showError('Error running manual reset.'); }
   });
   btnTest.addEventListener('click', async () => {
@@ -352,8 +395,9 @@
     catch{ showError('Endpoint not reachable. Check URL/network.'); }
   });
 
-  // Keep scanner focused & set banner on load
+  // Keep scanner focused & set banner/site on load
   window.addEventListener('load', () => {
+    renderSite();
     window.focus(); document.body.focus(); hiddenInput.focus();
     refreshActiveUrl(); renderDefaultNote(); setNetBanner();
   });

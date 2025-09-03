@@ -18,7 +18,7 @@
   .title{font-size:clamp(32px,4.2vw,56px);margin:18px 0 10px;font-weight:800;letter-spacing:.02em}
   .status{margin:18px 0 10px;font-size:clamp(32px,4vw,50px);font-weight:800;line-height:1.15}
   .status.ok{color:var(--ok)} .status.out{color:var(--out)} .status.err{color:var(--err)}
-  .hint{font-size:clamp(16px,1.8vw,18px);color:var(--muted)}
+  .hint{font-size:clamp(16px,1.8vw,18px);color:#cbd7e6}
   .last{margin-top:14px;color:#b7c6d8;font-size:clamp(14px,1.6vw,16px)}
   .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
   button{font-size:18px;padding:12px 16px;border-radius:12px;border:1px solid #263246;background:#18202b;color:#e8eef4;cursor:pointer}
@@ -36,7 +36,7 @@
   .modal h2{margin:0 0 6px;font-size:28px}
   .modal label{display:block;margin-top:12px;color:#cfd9e6}
   .modal input[type=text],.modal input[type=password],.modal textarea,.modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
-  .muted{color:var(--muted);font-size:14px}
+  .muted{color:#9fb0c3;font-size:14px}
   .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   .tiny{font-size:12px;color:#93a6bd;margin-top:8px}
 </style>
@@ -44,7 +44,7 @@
 <body>
   <div class="wrap">
     <div class="card" id="card">
-      <!-- These show which building this kiosk is for -->
+      <!-- Building indicator -->
       <div class="brand" id="brandText">Lindenwold HS Staff Sign In/Out</div>
       <button class="gear" id="btnGear" title="Admin">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -115,7 +115,7 @@
   </div>
 
 <script>
-  /* ===== Site presets ===== */
+  // ===== Site presets =====
   const SITES = {
     HS:   'Lindenwold HS Staff Sign In/Out',
     MS:   'Lindenwold MS Staff Sign In/Out',
@@ -124,45 +124,46 @@
     ECC:  'Lindenwold ECC Staff Sign In/Out',
     DIST: 'Lindenwold Staff Sign In/Out'
   };
+  // Choose default by constant, URL (?site=HS), or Admin (localStorage)
+  const DEFAULT_SITE = 'HS';
 
-  /* ===== Hardcoded defaults for testing (change per kiosk) ===== */
-  const DEFAULT_SITE        = 'HS'; // << HS kiosk; change to MS/S4/S5/ECC/DIST for others
+  // ===== Testing defaults (override in Admin at runtime) =====
   const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzBG8-_nJSEtAvBYGVZcxJsfBx-9Li0KXOCXY396RXdrpqhw8je5ugw1FG_KIUtYSc/exec';
   const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
 
-  /* ===== Config ===== */
-  const ADMIN_UI_PIN    = '1234';
-  const GAP_MS          = 80;
-  const MAX_LEN         = 128;
-  const REQ_TIMEOUT_MS  = 8000;
+  // ===== Config =====
+  const ADMIN_UI_PIN = '1234';
+  const GAP_MS = 80;
+  const MAX_LEN = 128;
+  const REQ_TIMEOUT_MS = 8000;
   const AUTO_REFOCUS_MS = 20000;
 
-  /* ===== Elements ===== */
-  const brandEl        = document.getElementById('brandText');
-  const titleEl        = document.getElementById('titleText');
-  const statusEl       = document.getElementById('status');
-  const lastEl         = document.getElementById('last');
-  const defaultNoteEl  = document.getElementById('defaultNote');
-  const hiddenInput    = document.getElementById('rfidHidden');
-  const btnRefocus     = document.getElementById('btnRefocus');
-  const btnFullscreen  = document.getElementById('btnFullscreen');
-  const btnGear        = document.getElementById('btnGear');
-  const adminModal     = document.getElementById('adminModal');
-  const adminPanel     = document.getElementById('adminPanel');
-  const pinInput       = document.getElementById('pin');
-  const btnPinUnlock   = document.getElementById('btnPinUnlock');
-  const btnPinCancel   = document.getElementById('btnPinCancel');
-  const urlEl          = document.getElementById('scriptUrl');
-  const tokEl          = document.getElementById('token');
-  const btnSave        = document.getElementById('btnSave');
-  const btnClear       = document.getElementById('btnClearSettings');
+  // ===== Elements =====
+  const brandEl = document.getElementById('brandText');
+  const titleEl = document.getElementById('titleText');
+  const statusEl = document.getElementById('status');
+  const lastEl = document.getElementById('last');
+  const defaultNoteEl = document.getElementById('defaultNote');
+  const hiddenInput = document.getElementById('rfidHidden');
+  const btnRefocus = document.getElementById('btnRefocus');
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnGear = document.getElementById('btnGear');
+  const adminModal = document.getElementById('adminModal');
+  const adminPanel = document.getElementById('adminPanel');
+  const pinInput = document.getElementById('pin');
+  const btnPinUnlock = document.getElementById('btnPinUnlock');
+  const btnPinCancel = document.getElementById('btnPinCancel');
+  const urlEl = document.getElementById('scriptUrl');
+  const tokEl = document.getElementById('token');
+  const btnSave = document.getElementById('btnSave');
+  const btnClearSettings = document.getElementById('btnClearSettings');
   const btnManualReset = document.getElementById('btnManualReset');
-  const btnTest        = document.getElementById('btnTest');
-  const activeUrlEl    = document.getElementById('activeUrl');
-  const siteSelect     = document.getElementById('siteSelect');
-  const card           = document.getElementById('card');
+  const btnTest = document.getElementById('btnTest');
+  const activeUrlEl = document.getElementById('activeUrl');
+  const siteSelect = document.getElementById('siteSelect');
+  const card = document.getElementById('card');
 
-  /* ===== Persistence ===== */
+  // ===== Persistence =====
   function getQuerySite(){
     const m = (location.search.match(/[?&]site=([^&]+)/i) || [])[1];
     return m ? decodeURIComponent(m).toUpperCase() : '';
@@ -174,31 +175,23 @@
     if (stored && SITES[stored]) return stored;
     return DEFAULT_SITE;
   }
-  function setSiteKey(k){ if (SITES[k]) { localStorage.setItem('siteKey', k); renderSite(); } }
+  function setSiteKey(k){ if(SITES[k]) localStorage.setItem('siteKey', k); renderSite(); }
 
   function getScriptUrl(){
-    const fromUI = (urlEl && urlEl.value || '').trim();
+    const fromUI = (urlEl && urlEl.value||'').trim();
     if (fromUI) return fromUI;
     const stored = (localStorage.getItem('scriptUrl')||'').trim();
     return stored || DEFAULT_SCRIPT_URL;
   }
-  function setScriptUrl(v){
-    localStorage.setItem('scriptUrl', String(v||'').trim());
-    refreshActiveUrl();
-    renderDefaultNote();
-  }
+  function setScriptUrl(v){ localStorage.setItem('scriptUrl', String(v||'').trim()); refreshActiveUrl(); renderDefaultNote(); }
   function getAdminToken(){
-    const fromUI = (tokEl && tokEl.value || '').trim();
+    const fromUI = (tokEl && tokEl.value||'').trim();
     if (fromUI) return fromUI;
     const stored = (localStorage.getItem('adminToken')||'').trim();
     return stored || DEFAULT_ADMIN_TOKEN;
   }
-  function setAdminToken(v){
-    if (v) localStorage.setItem('adminToken', String(v||'').trim());
-    else localStorage.removeItem('adminToken');
-    renderDefaultNote();
-  }
-  function refreshActiveUrl(){ if (activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
+  function setAdminToken(v){ if(v) localStorage.setItem('adminToken', String(v||'').trim()); else localStorage.removeItem('adminToken'); renderDefaultNote(); }
+  function refreshActiveUrl(){ if(activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
   function renderDefaultNote(){
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
     defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
@@ -228,7 +221,7 @@
   window.addEventListener('online',  setNetBanner);
   window.addEventListener('offline', setNetBanner);
 
-  /* ===== Normalizer & masking ===== */
+  // ===== Normalizer & masking =====
   function normalizeTag(s){ return String(s||'').trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,''); }
   function maskTag(s){
     const digits = String(s||'').replace(/\D/g,'');
@@ -236,10 +229,10 @@
     return '•••• ' + (last4 || '0000');
   }
 
-  /* ===== Submit to Apps Script (optimistic UI + retry + warm-up) ===== */
+  // ===== Submit to Apps Script (optimistic UI + retry + warm-up) =====
   async function submitTag(raw){
-    const url  = getScriptUrl();
-    const tag  = normalizeTag(raw);
+    const url = getScriptUrl();
+    const tag = normalizeTag(raw);
     const site = getSiteKey(); // always send site
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
@@ -310,7 +303,7 @@
     }
   }
 
-  /* ===== UI helpers ===== */
+  // ===== UI helpers =====
   function showPending(t){ statusEl.textContent = t; statusEl.className='status'; }
   function showResponse(text){
     const t = String(text||'');
@@ -321,7 +314,6 @@
   }
   function showError(msg){ statusEl.textContent=msg; statusEl.className='status err'; flash('err'); }
   function flash(kind){
-    const card = document.getElementById('card');
     card.classList.remove('flash','flash-out','flash-err');
     void card.offsetWidth;
     if(kind==='in') card.classList.add('flash');
@@ -329,7 +321,7 @@
     else card.classList.add('flash-err');
   }
 
-  /* ===== Global capture with idle-submit ===== */
+  // ===== Global capture with idle-submit =====
   let buf=''; let lastTs=0; let submitTimer=null;
   function isEditable(el){ if(!el) return false; if(el.isContentEditable) return true; const t=el.tagName; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'; }
   function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=''; if(out) submitTag(out); }, GAP_MS); }
@@ -346,12 +338,12 @@
     if(e.key==='Enter' || e.key==='Tab'){ const out=normalizeTag(hiddenInput.value); hiddenInput.value=''; if(out) submitTag(out); e.preventDefault(); }
   });
 
-  /* ===== Admin modal ===== */
+  // ===== Admin modal =====
   function openAdmin() {
     adminModal.style.display = 'flex';
     document.body.dataset.adminOpen = '1';
-    urlEl.value  = localStorage.getItem('scriptUrl')   || '';
-    tokEl.value  = localStorage.getItem('adminToken')  || '';
+    urlEl.value = localStorage.getItem('scriptUrl') || '';
+    tokEl.value = localStorage.getItem('adminToken') || '';
     siteSelect.value = getSiteKey();
     adminPanel.style.display = 'none';
     pinInput.value = '';
@@ -383,7 +375,7 @@
     showPending('Settings saved. Waiting for swipe…');
     hiddenInput.focus();
   });
-  btnClear.addEventListener('click', () => {
+  btnClearSettings.addEventListener('click', () => {
     localStorage.removeItem('scriptUrl'); localStorage.removeItem('adminToken'); localStorage.removeItem('siteKey');
     urlEl.value=''; tokEl.value=''; siteSelect.value=DEFAULT_SITE; refreshActiveUrl(); renderDefaultNote(); renderSite();
     showPending('Settings cleared. Using defaults.');

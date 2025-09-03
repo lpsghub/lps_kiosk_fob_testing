@@ -18,7 +18,7 @@
   .title{font-size:clamp(32px,4.2vw,56px);margin:18px 0 10px;font-weight:800;letter-spacing:.02em}
   .status{margin:18px 0 10px;font-size:clamp(32px,4vw,50px);font-weight:800;line-height:1.15}
   .status.ok{color:var(--ok)} .status.out{color:var(--out)} .status.err{color:var(--err)}
-  .hint{font-size:clamp(16px,1.8vw,18px);color:#cbd7e6}
+  .hint{font-size:clamp(16px,1.8vw,18px);color:var(--muted)}
   .last{margin-top:14px;color:#b7c6d8;font-size:clamp(14px,1.6vw,16px)}
   .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
   button{font-size:18px;padding:12px 16px;border-radius:12px;border:1px solid #263246;background:#18202b;color:#e8eef4;cursor:pointer}
@@ -35,8 +35,8 @@
   .modal .panel{width:min(800px,96vw);background:#121720;border:1px solid #1f2a3a;border-radius:18px;padding:24px}
   .modal h2{margin:0 0 6px;font-size:28px}
   .modal label{display:block;margin-top:12px;color:#cfd9e6}
-  .modal input[type=text],.modal input[type=password],.modal textarea,.modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
-  .muted{color:#9fb0c3;font-size:14px}
+  .modal input[type=text],.modal input[type=password],.modal textarea, .modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
+  .muted{color:var(--muted);font-size:14px}
   .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   .tiny{font-size:12px;color:#93a6bd;margin-top:8px}
 </style>
@@ -44,12 +44,12 @@
 <body>
   <div class="wrap">
     <div class="card" id="card">
-      <!-- Building indicator -->
+      <!-- Building label -->
       <div class="brand" id="brandText">Lindenwold HS Staff Sign In/Out</div>
       <button class="gear" id="btnGear" title="Admin">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c.66 0 1.27.39 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
         </svg>
       </button>
 
@@ -127,7 +127,8 @@
   // Choose default by constant, URL (?site=HS), or Admin (localStorage)
   const DEFAULT_SITE = 'HS';
 
-  // ===== Testing defaults (override in Admin at runtime) =====
+  // ===== Defaults for THIS location (can be overridden in Admin) =====
+  // Use your current deployment URL here (you can change via Admin anytime)
   const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzBG8-_nJSEtAvBYGVZcxJsfBx-9Li0KXOCXY396RXdrpqhw8je5ugw1FG_KIUtYSc/exec';
   const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
 
@@ -233,7 +234,7 @@
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
-    const site = getSiteKey(); // always send site
+    const site = getSiteKey(); // <<< SEND SITE KEY
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -314,6 +315,7 @@
   }
   function showError(msg){ statusEl.textContent=msg; statusEl.className='status err'; flash('err'); }
   function flash(kind){
+    const card = document.getElementById('card');
     card.classList.remove('flash','flash-out','flash-err');
     void card.offsetWidth;
     if(kind==='in') card.classList.add('flash');
@@ -381,7 +383,8 @@
     showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
-    const url = getScriptUrl(); const token = getAdminToken(); const site = getSiteKey();
+    const url = getScriptUrl(); const token = getAdminToken();
+    const site = getSiteKey(); // <<< include site in manual reset
     if(!url) return alert('Set and save the Web App URL first.');
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');

@@ -44,7 +44,7 @@
 <body>
   <div class="wrap">
     <div class="card" id="card">
-      <!-- These two lines clearly show the building -->
+      <!-- Building label -->
       <div class="brand" id="brandText">Lindenwold HS Staff Sign In/Out</div>
       <button class="gear" id="btnGear" title="Admin">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -128,7 +128,8 @@
   const DEFAULT_SITE = 'HS';
 
   // ===== Defaults for this location (can be overridden in Admin) =====
-  const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+  const DEFAULT_SCRIPT_URL  =
+    'https://script.google.com/macros/s/AKfycbzBG8-_nJSEtAvBYGVZcxJsfBx-9Li0KXOCXY396RXdrpqhw8je5ugw1FG_KIUtYSc/exec';
   const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
 
   // ===== Config =====
@@ -194,7 +195,7 @@
   function refreshActiveUrl(){ if(activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
   function renderDefaultNote(){
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
-    defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
+    if (defaultNoteEl) defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
   }
 
   function renderSite(){
@@ -233,7 +234,7 @@
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
-    const site = getSiteKey(); // SEND SITE KEY
+    const site = getSiteKey(); // send which building this kiosk is for
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -386,7 +387,7 @@
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');
     try{
-      const r = await fetch(url,{
+      const r=await fetch(url,{
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams({ action:'reset', token, site })

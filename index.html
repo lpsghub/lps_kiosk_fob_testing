@@ -233,7 +233,7 @@
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
-    const site = getSiteKey(); // <<< SEND SITE KEY
+    const site = getSiteKey(); // SEND SITE KEY
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -381,12 +381,16 @@
     showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
-    const url = getScriptUrl(); const token = getAdminToken();
+    const url = getScriptUrl(); const token = getAdminToken(); const site = getSiteKey();
     if(!url) return alert('Set and save the Web App URL first.');
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');
     try{
-      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token})});
+      const r = await fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({ action:'reset', token, site })
+      });
       showResponse(await r.text());
     }catch{ showError('Error running manual reset.'); }
   });

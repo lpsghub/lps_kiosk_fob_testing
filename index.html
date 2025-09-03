@@ -124,12 +124,10 @@
     ECC:  'Lindenwold ECC Staff Sign In/Out',
     DIST: 'Lindenwold Staff Sign In/Out'
   };
-  // Choose default by constant, URL (?site=HS), or Admin (localStorage)
   const DEFAULT_SITE = 'HS';
 
   // ===== Defaults for this location (can be overridden in Admin) =====
-  const DEFAULT_SCRIPT_URL  =
-    'https://script.google.com/macros/s/AKfycbzBG8-_nJSEtAvBYGVZcxJsfBx-9Li0KXOCXY396RXdrpqhw8je5ugw1FG_KIUtYSc/exec';
+  const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzBG8-_nJSEtAvBYGVZcxJsfBx-9Li0KXOCXY396RXdrpqhw8je5ugw1FG_KIUtYSc/exec';
   const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
 
   // ===== Config =====
@@ -164,7 +162,7 @@
   const siteSelect = document.getElementById('siteSelect');
   const card = document.getElementById('card');
 
-  // ===== Persistence =====
+  // ===== Persistence & site selection =====
   function getQuerySite(){
     const m = (location.search.match(/[?&]site=([^&]+)/i) || [])[1];
     return m ? decodeURIComponent(m).toUpperCase() : '';
@@ -195,9 +193,8 @@
   function refreshActiveUrl(){ if(activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
   function renderDefaultNote(){
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
-    if (defaultNoteEl) defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
+    defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
   }
-
   function renderSite(){
     const key = getSiteKey();
     const label = SITES[key] || SITES[DEFAULT_SITE];
@@ -230,11 +227,11 @@
     return '•••• ' + (last4 || '0000');
   }
 
-  // ===== Submit to Apps Script (optimistic UI + retry + warm-up) =====
+  // ===== Submit to Apps Script (always includes site) =====
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
-    const site = getSiteKey(); // send which building this kiosk is for
+    const site = getSiteKey();
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -382,7 +379,8 @@
     showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
-    const url = getScriptUrl(); const token = getAdminToken(); const site = getSiteKey();
+    const url = getScriptUrl(); const token = getAdminToken();
+    const site = getSiteKey();
     if(!url) return alert('Set and save the Web App URL first.');
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');

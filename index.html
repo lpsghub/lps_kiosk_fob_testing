@@ -18,7 +18,7 @@
   .title{font-size:clamp(32px,4.2vw,56px);margin:18px 0 10px;font-weight:800;letter-spacing:.02em}
   .status{margin:18px 0 10px;font-size:clamp(32px,4vw,50px);font-weight:800;line-height:1.15}
   .status.ok{color:var(--ok)} .status.out{color:var(--out)} .status.err{color:var(--err)}
-  .hint{font-size:clamp(16px,1.8vw,18px);color:var(--muted)}
+  .hint{font-size:clamp(16px,1.8vw,18px);color:#9fb0c3}
   .last{margin-top:14px;color:#b7c6d8;font-size:clamp(14px,1.6vw,16px)}
   .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
   button{font-size:18px;padding:12px 16px;border-radius:12px;border:1px solid #263246;background:#18202b;color:#e8eef4;cursor:pointer}
@@ -35,8 +35,8 @@
   .modal .panel{width:min(800px,96vw);background:#121720;border:1px solid #1f2a3a;border-radius:18px;padding:24px}
   .modal h2{margin:0 0 6px;font-size:28px}
   .modal label{display:block;margin-top:12px;color:#cfd9e6}
-  .modal input[type=text],.modal input[type=password],.modal textarea,.modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
-  .muted{color:var(--muted);font-size:14px}
+  .modal input[type=text],.modal input[type=password],.modal textarea, .modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
+  .muted{color:#9fb0c3;font-size:14px}
   .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   .tiny{font-size:12px;color:#93a6bd;margin-top:8px}
 </style>
@@ -57,6 +57,7 @@
       <div class="hint">Hold your fob to the reader. No need to touch the screen.</div>
       <div class="tiny" id="defaultNote"></div>
 
+      <!-- Offline / slow network banner -->
       <div id="netWarn" style="display:none;margin-top:8px;padding:8px 12px;border:1px solid #5a3a00;border-radius:10px;background:#2a1d00;color:#ffd9a1;font-size:16px;">
         Network seems offline or slow. We’ll keep trying in the background…
       </div>
@@ -113,7 +114,7 @@
   </div>
 
 <script>
-  // ===== Sites =====
+  // ===== Site presets =====
   const SITES = {
     HS:   'Lindenwold HS Staff Sign In/Out',
     MS:   'Lindenwold MS Staff Sign In/Out',
@@ -122,17 +123,19 @@
     ECC:  'Lindenwold ECC Staff Sign In/Out',
     DIST: 'Lindenwold Staff Sign In/Out'
   };
+  // Choose default by constant, URL (?site=HS), or Admin (localStorage)
   const DEFAULT_SITE = 'HS';
 
-  // ===== Defaults for this kiosk (can be overridden in Admin) =====
+  // ===== Defaults for this location (can be overridden in Admin) =====
+  // Your production /exec URL (baked in so kiosks work out-of-the-box)
   const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
-  const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
+  const DEFAULT_ADMIN_TOKEN = 'asdfghjkl'; // change later if you want
 
   // ===== Config =====
-  const ADMIN_UI_PIN = '1234';
+  const ADMIN_UI_PIN = '1234';  // change this
   const GAP_MS = 80;
   const MAX_LEN = 128;
-  const REQ_TIMEOUT_MS = 10000;  // 10s
+  const REQ_TIMEOUT_MS = 10000; // 10s
   const AUTO_REFOCUS_MS = 20000;
 
   // ===== Elements =====
@@ -193,6 +196,7 @@
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
     defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
   }
+
   function renderSite(){
     const key = getSiteKey();
     const label = SITES[key] || SITES[DEFAULT_SITE];
@@ -201,11 +205,12 @@
     if (siteSelect) siteSelect.value = key;
   }
 
-  // Keep Apps Script warm
+  // Keep Apps Script warm (reduce cold start)
   setInterval(() => {
     const url = getScriptUrl();
     if (!url) return;
-    fetch(url, { method: 'GET' }).catch(()=>{});
+    const qs = new URLSearchParams({ site: getSiteKey() });
+    fetch(url + '?' + qs.toString(), { method: 'GET' }).catch(()=>{});
   }, 60000);
 
   // Network banner
@@ -217,7 +222,7 @@
   window.addEventListener('online',  setNetBanner);
   window.addEventListener('offline', setNetBanner);
 
-  // Normalizer & masking
+  // ===== Normalizer & masking =====
   function normalizeTag(s){ return String(s||'').trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,''); }
   function maskTag(s){
     const digits = String(s||'').replace(/\D/g,'');
@@ -225,7 +230,7 @@
     return '•••• ' + (last4 || '0000');
   }
 
-  // Submit to Apps Script
+  // ===== Submit to Apps Script (optimistic UI + retry + warm-up) =====
   async function submitTag(raw){
     const url = getScriptUrl();
     const tag = normalizeTag(raw);
@@ -253,16 +258,15 @@
     }
   }
 
-  // fetch with timeout + retries
-  async function tryFetchWithRetry(url, data, retries, backoffsMs){
+  // Helper: fetch with timeout + retries
+  async function tryFetchWithRetry(url, bodyMap, retries, backoffsMs){
     const doPost = () => {
       const ctrl = new AbortController();
       const timer = setTimeout(()=>ctrl.abort(), REQ_TIMEOUT_MS);
-      const body = new URLSearchParams(data);
       return fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body,
+        body:new URLSearchParams(bodyMap),
         signal: ctrl.signal
       }).finally(()=>clearTimeout(timer));
     };
@@ -285,13 +289,17 @@
     throw lastErr;
   }
 
-  async function warmAndRetry(url, data){
-    try{ await fetch(url, { method:'GET' }); }catch{}
+  // Helper: warm up with a GET, then try one last POST
+  async function warmAndRetry(url, bodyMap){
+    try{ 
+      const qs = new URLSearchParams({ site: bodyMap.site || getSiteKey() });
+      await fetch(url + '?' + qs.toString(), { method:'GET' }); 
+    }catch{}
     try{
       const r = await fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams(data)
+        body:new URLSearchParams(bodyMap)
       });
       return await r.text();
     }catch(e){
@@ -299,7 +307,7 @@
     }
   }
 
-  // UI helpers
+  // ===== UI helpers =====
   function showPending(t){ statusEl.textContent = t; statusEl.className='status'; }
   function showResponse(text){
     const t = String(text||'');
@@ -317,14 +325,15 @@
     else card.classList.add('flash-err');
   }
 
-  // Keyboard capture
+  // ===== Global capture with idle-submit =====
   let buf=''; let lastTs=0; let submitTimer=null;
   function isEditable(el){ if(!el) return false; if(el.isContentEditable) return true; const t=el.tagName; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'; }
   function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=''; if(out) submitTag(out); }, GAP_MS); }
 
   document.addEventListener('keydown', (evt) => {
     if(isEditable(evt.target) && evt.target.id!=='rfidHidden') return;
-    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf=''; lastTs = now;
+    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf='';
+    lastTs = now;
     if(/^[A-Za-z0-9.\-]$/.test(evt.key)){ if(buf.length<MAX_LEN) buf += evt.key; scheduleIdleSubmit(); evt.preventDefault(); }
     else if(evt.key==='Enter' || evt.key==='Tab'){ clearTimeout(submitTimer); const out=normalizeTag(buf); buf=''; if(out) submitTag(out); evt.preventDefault(); }
   });
@@ -333,7 +342,7 @@
     if(e.key==='Enter' || e.key==='Tab'){ const out=normalizeTag(hiddenInput.value); hiddenInput.value=''; if(out) submitTag(out); e.preventDefault(); }
   });
 
-  // Admin modal
+  // ===== Admin modal =====
   function openAdmin() {
     adminModal.style.display = 'flex';
     document.body.dataset.adminOpen = '1';
@@ -349,7 +358,7 @@
     delete document.body.dataset.adminOpen;
     window.focus(); document.body.focus(); hiddenInput.focus();
   }
-  document.getElementById('btnGear').addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openAdmin(); });
+  btnGear.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openAdmin(); });
   document.addEventListener('keydown', (ev) => {
     if (ev.ctrlKey && ev.shiftKey && (ev.key==='A' || ev.key==='a')) { ev.preventDefault(); openAdmin(); }
   });
@@ -376,26 +385,28 @@
     showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
-    const url = getScriptUrl(); const token = getAdminToken(); const site=getSiteKey();
+    const url = getScriptUrl(); const token = getAdminToken();
     if(!url) return alert('Set and save the Web App URL first.');
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');
     try{
-      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token,site})});
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token, site:getSiteKey()})});
       showResponse(await r.text());
     }catch{ showError('Error running manual reset.'); }
   });
   btnTest.addEventListener('click', async () => {
-    const url=getScriptUrl(); const site=getSiteKey(); if(!url) return alert('Set your Web App URL first.');
+    const url=getScriptUrl(); if(!url) return alert('Set your Web App URL first.');
     showPending('Pinging endpoint…');
-    try{
-      // quick POST ping verifies POST path too
-      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'ping',site})});
-      const txt=await r.text(); showResponse(txt||'OK');
-    } catch{ showError('Endpoint not reachable. Check URL/network.'); }
+    try{ 
+      const qs = new URLSearchParams({ site:getSiteKey() });
+      const r=await fetch(url + '?' + qs.toString(),{method:'GET'}); 
+      const txt=await r.text(); 
+      showResponse(txt||'OK'); 
+    }
+    catch{ showError('Endpoint not reachable. Check URL/network.'); }
   });
 
-  // Focus & init
+  // Keep scanner focused & set banner/site on load
   window.addEventListener('load', () => {
     renderSite();
     window.focus(); document.body.focus(); hiddenInput.focus();

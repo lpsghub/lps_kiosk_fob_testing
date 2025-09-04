@@ -21,7 +21,6 @@
   .muted{color:var(--muted);font-size:12px}
   .pill{display:inline-block;border:1px solid #365082;border-radius:999px;padding:2px 8px;font-size:12px;margin-left:8px}
   .status-ok{color:var(--ok)} .status-out{color:var(--out)}
-  details{margin-top:8px}
 </style>
 </head>
 <body>
@@ -42,7 +41,6 @@
           <option value="S5">S5</option>
           <option value="ECC">ECC</option>
           <option value="DIST">DIST</option>
-          <option value="ALL">ALL</option>
         </select>
       </label>
 
@@ -68,48 +66,34 @@
       <thead><tr id="thead"></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
-
-    <details>
-      <summary>Endpoint settings</summary>
-      <div class="row" style="margin-top:8px;">
-        <input id="execUrl" type="text" style="min-width:420px" placeholder="https://script.google.com/.../exec" />
-        <button id="btnSaveUrl">Save URL</button>
-        <span class="muted" id="activeUrl"></span>
-      </div>
-    </details>
   </div>
 </div>
 
 <script>
-const DEFAULT_EXEC = ''; // paste your new /exec after you deploy the bound script
-const SITES = {HS:'HS', MS:'MS', S4:'S4', S5:'S5', ECC:'ECC', DIST:'DIST', ALL:'ALL'};
+const DEFAULT_EXEC = 'https://script.google.com/macros/s/AKfycbzjvp9PkwYxeHOVHl4SMFfTOh4drqaiQ6xQZR4qmKzfKgzKltvtMY2wsBBU1bhRE9H7sg/exec';
+const SITES = {HS:'Lindenwold HS', MS:'Lindenwold MS', S4:'Lindenwold S4', S5:'Lindenwold S5', ECC:'Lindenwold ECC', DIST:'Lindenwold District'};
 
 const el = id => document.getElementById(id);
 const site = el('site'), dtype = el('dtype'), search = el('search'), from = el('from'), to = el('to');
 const btnLoad = el('btnLoad'), btnCSV = el('btnCSV');
 const thead = el('thead'), tbody = el('tbody'), meta = el('meta');
 const siteLabel = el('siteLabel'), typeLabel = el('typeLabel');
-const execUrl = el('execUrl'), activeUrl = el('activeUrl'), btnSaveUrl = el('btnSaveUrl');
-
-function getExec(){ return (localStorage.getItem('viewerExec')||'').trim() || DEFAULT_EXEC; }
-function setExec(v){ localStorage.setItem('viewerExec', String(v||'').trim()); activeUrl.textContent = `Active: ${getExec()}`; }
 
 function paramsFromURL(){
   const q = new URLSearchParams(location.search);
   const s = (q.get('site')||'').toUpperCase();
-  const t = (q.get('mode')||'status').toLowerCase();
-  const lim = q.get('limit');
+  const t = (q.get('type')||q.get('mode')||'status').toLowerCase();
+  const limit = q.get('limit')||'';
   if (SITES[s]) site.value = s;
   if (['status','log','mapping'].includes(t)) dtype.value = t;
-  if (lim) localStorage.setItem('viewerLimit', lim);
+  if (limit) localStorage.setItem('viewerLimit', limit);
 }
 paramsFromURL();
-execUrl.value = localStorage.getItem('viewerExec')||'';
-setExec(getExec());
-siteLabel.textContent = site.value;
+
+siteLabel.textContent = SITES[site.value];
 typeLabel.textContent = dtype.value.toUpperCase();
-btnSaveUrl.onclick = ()=> setExec(execUrl.value);
-site.onchange = ()=> { siteLabel.textContent = site.value; };
+
+site.onchange = ()=> { siteLabel.textContent = SITES[site.value]; };
 dtype.onchange = ()=> { typeLabel.textContent = dtype.value.toUpperCase(); draw([]); };
 
 function fmtLocal(tsISO){
@@ -129,6 +113,7 @@ function draw(rows){
     meta.textContent = '0 rows.';
     return;
   }
+  // derive headers from first row keys and map column order by type
   let order = [];
   if (dtype.value==='status') order = ['tagId','first','last','status','time'];
   else if (dtype.value==='log') order = ['time','tagId','first','last','action'];
@@ -136,6 +121,7 @@ function draw(rows){
 
   currentHeaders = order.filter(k => k in rows[0]);
 
+  // header row (click to sort)
   currentHeaders.forEach((h)=>{
     const th = document.createElement('th');
     th.textContent = h.toUpperCase();
@@ -145,6 +131,7 @@ function draw(rows){
     thead.appendChild(th);
   });
 
+  // body
   rows.forEach(r=>{
     const tr = document.createElement('tr');
     currentHeaders.forEach(h=>{
@@ -199,8 +186,11 @@ function applyFilters(rows){
   const toD   = to.value   ? new Date(to.value+'T23:59:59') : null;
 
   return rows.filter(r=>{
+    // text search across relevant fields
     const hay = (r.tagId||'')+' '+(r.first||'')+' '+(r.last||'')+' '+(r.status||'')+' '+(r.action||'');
     if (q && !hay.toLowerCase().includes(q)) return false;
+
+    // date filter (only for time-bearing rows)
     if (r.time){
       const t = new Date(r.time);
       if (fromD && t < fromD) return false;
@@ -211,27 +201,21 @@ function applyFilters(rows){
 }
 
 async function loadData(){
-  const exec = getExec();
-  if (!exec){ meta.textContent = 'Set the /exec URL (top-right) first.'; draw([]); return; }
-
-  const url = new URL(exec);
+  const url = new URL(DEFAULT_EXEC);
   url.searchParams.set('action','read');
   url.searchParams.set('type', dtype.value);
-  const siteVal = site.value;
-  if (dtype.value!=='mapping') url.searchParams.set('site', siteVal);
-  const limit = (localStorage.getItem('viewerLimit') || '1000');
-  url.searchParams.set('limit', limit);
+  if (dtype.value!=='mapping') url.searchParams.set('site', site.value);
+  url.searchParams.set('limit', localStorage.getItem('viewerLimit') || '5000');
 
   meta.textContent = 'Loading…';
   try{
     const res = await fetch(url.toString(), {method:'GET'});
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error||'Unknown error');
     currentRows = applyFilters(data.rows||[]);
     draw(currentRows);
   }catch(err){
-    meta.textContent = 'Error: '+err.message;
+    meta.textContent = 'Error: '+err.message + ' — Check that your Web App deployment is set to "Anyone".';
     draw([]);
   }
 }
@@ -241,6 +225,7 @@ search.oninput = ()=> draw(applyFilters(currentRows));
 from.onchange = ()=> draw(applyFilters(currentRows));
 to.onchange = ()=> draw(applyFilters(currentRows));
 
+// auto-load on open
 loadData();
 </script>
 </body>

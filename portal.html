@@ -13,20 +13,25 @@
     --ok:#2ecc71; --warn:#f39c12; --err:#e74c3c; --line:#202835;
   }
   html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
+  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:center;padding:4vh 3vw}
   .card{width:min(1100px,96vw);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 30px 80px rgba(0,0,0,.35);position:relative}
   h1{margin:0 0 8px;font-size:clamp(28px,3.6vw,40px);font-weight:800}
   p.muted{color:var(--muted);margin:0 0 18px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px}
   .group{border:1px solid var(--line);border-radius:16px;padding:14px}
   .group h3{margin:0 0 8px;font-size:18px;font-weight:700;color:#dfe8f5}
   .row{display:flex;flex-wrap:wrap;gap:8px}
-  a.btn{display:inline-block;text-decoration:none;border:1px solid #263246;background:#18202b;color:#e8eef4;border-radius:12px;padding:10px 12px;font-size:15px}
-  a.btn.primary{background:var(--accent);border-color:#2b6fe0}
-  a.btn.ok{background:var(--ok);border-color:#25b863}
-  a.btn.warn{background:var(--warn);border-color:#d4860d;color:#1d1200}
+  a.btn,button.btn{display:inline-block;text-decoration:none;border:1px solid #263246;background:#18202b;color:#e8eef4;border-radius:12px;padding:10px 12px;font-size:15px;cursor:pointer}
+  a.btn.primary,button.btn.primary{background:var(--accent);border-color:#2b6fe0}
+  a.btn.ok,button.btn.ok{background:var(--ok);border-color:#25b863}
+  a.btn.warn,button.btn.warn{background:var(--warn);border-color:#d4860d;color:#1d1200}
   code{background:#0c1219;border:1px solid #213044;color:#b9cee6;border-radius:8px;padding:2px 6px}
   .footer{margin-top:18px;color:#9fb0c3;font-size:13px}
+  input[type=text]{background:#0c1219;border:1px solid #28405d;color:#e8eef4;border-radius:10px;padding:8px 10px;font-size:14px;min-width:340px}
+  select{background:#0c1219;border:1px solid #28405d;color:#e8eef4;border-radius:10px;padding:8px 10px;font-size:14px}
+  .mutedline{color:#98abc2;font-size:13px;margin-top:8px}
+  pre{background:#0b1118;border:1px solid #213044;color:#d7e7ff;border-radius:12px;padding:12px;max-height:380px;overflow:auto;font-size:13px}
+  .tiny{color:#9fb0c3;font-size:12px}
 </style>
 </head>
 <body>
@@ -35,158 +40,246 @@
     <h1>Lindenwold Kiosk — Admin Portal</h1>
     <p class="muted">Quick links to kiosks, viewers, backend diagnostics, and the data sheet.</p>
 
-    <!-- You can change these three if you ever rename things -->
+    <!-- Config row -->
     <div class="group">
-      <h3>Config (read-only)</h3>
-      <div class="row" style="gap:14px;align-items:center">
+      <h3>Config</h3>
+      <div class="row" style="gap:14px;align-items:center;margin-bottom:8px">
         <div>Site base: <code id="baseSite"></code></div>
         <div>Viewer base: <code id="baseViewer"></code></div>
-        <div>Apps Script: <code id="baseExec"></code></div>
+        <div>Sheet: <a id="openSheetInline" target="_blank"><code>open</code></a></div>
+      </div>
+      <div class="row" style="gap:8px;align-items:center">
+        <label for="execInput" class="tiny">Apps Script /exec URL</label>
+        <input id="execInput" type="text" placeholder="https://script.google.com/.../exec">
+        <button class="btn" id="btnSaveExec">Save URL</button>
+        <span class="mutedline" id="activeExec"></span>
       </div>
     </div>
 
+    <!-- Kiosks -->
     <div class="grid" style="margin-top:16px">
       <div class="group">
-        <h3>HS (High School)</h3>
+        <h3>Kiosk — Open by Site</h3>
         <div class="row">
           <a class="btn primary" id="hsKiosk" target="_blank">Open Kiosk — HS</a>
-          <a class="btn" id="hsStatus" target="_blank">Viewer: Status (HS)</a>
-          <a class="btn" id="hsLogs" target="_blank">Viewer: Logs (HS)</a>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>MS (Middle School)</h3>
-        <div class="row">
           <a class="btn primary" id="msKiosk" target="_blank">Open Kiosk — MS</a>
-          <a class="btn" id="msStatus" target="_blank">Viewer: Status (MS)</a>
-          <a class="btn" id="msLogs" target="_blank">Viewer: Logs (MS)</a>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>S4</h3>
-        <div class="row">
           <a class="btn primary" id="s4Kiosk" target="_blank">Open Kiosk — S4</a>
-          <a class="btn" id="s4Status" target="_blank">Viewer: Status (S4)</a>
-          <a class="btn" id="s4Logs" target="_blank">Viewer: Logs (S4)</a>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>S5</h3>
-        <div class="row">
           <a class="btn primary" id="s5Kiosk" target="_blank">Open Kiosk — S5</a>
-          <a class="btn" id="s5Status" target="_blank">Viewer: Status (S5)</a>
-          <a class="btn" id="s5Logs" target="_blank">Viewer: Logs (S5)</a>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>ECC</h3>
-        <div class="row">
           <a class="btn primary" id="eccKiosk" target="_blank">Open Kiosk — ECC</a>
-          <a class="btn" id="eccStatus" target="_blank">Viewer: Status (ECC)</a>
-          <a class="btn" id="eccLogs" target="_blank">Viewer: Logs (ECC)</a>
+          <a class="btn primary" id="distKiosk" target="_blank">Open Kiosk — DIST</a>
         </div>
+        <div class="tiny" style="margin-top:6px">Tip: right-click → Copy link.</div>
       </div>
 
+      <!-- Viewer quick links -->
       <div class="group">
-        <h3>District Office</h3>
+        <h3>Viewer — Per Site</h3>
         <div class="row">
-          <a class="btn primary" id="distKiosk" target="_blank">Open Kiosk — DIST</a>
-          <a class="btn" id="distStatus" target="_blank">Viewer: Status (DIST)</a>
-          <a class="btn" id="distLogs" target="_blank">Viewer: Logs (DIST)</a>
+          <a class="btn" id="hsStatus"  target="_blank">Status (HS)</a>
+          <a class="btn" id="hsLogs"    target="_blank">Logs (HS)</a>
+          <a class="btn" id="msStatus"  target="_blank">Status (MS)</a>
+          <a class="btn" id="msLogs"    target="_blank">Logs (MS)</a>
+          <a class="btn" id="s4Status"  target="_blank">Status (S4)</a>
+          <a class="btn" id="s4Logs"    target="_blank">Logs (S4)</a>
+          <a class="btn" id="s5Status"  target="_blank">Status (S5)</a>
+          <a class="btn" id="s5Logs"    target="_blank">Logs (S5)</a>
+          <a class="btn" id="eccStatus" target="_blank">Status (ECC)</a>
+          <a class="btn" id="eccLogs"   target="_blank">Logs (ECC)</a>
+          <a class="btn" id="distStatus"target="_blank">Status (DIST)</a>
+          <a class="btn" id="distLogs"  target="_blank">Logs (DIST)</a>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <a class="btn" id="allStatusIn" target="_blank">Status (All, IN only)</a>
+          <a class="btn" id="allLogs50"   target="_blank">Logs (All, last 50)</a>
         </div>
       </div>
     </div>
 
+    <!-- Backend diagnostics and live tester -->
     <div class="grid" style="margin-top:16px">
       <div class="group">
-        <h3>Viewer (multi-site)</h3>
-        <div class="row">
-          <a class="btn" id="allStatusIn" target="_blank">Status (All sites, IN only)</a>
-          <a class="btn" id="allLogs50" target="_blank">Logs (All sites, last 50)</a>
-        </div>
-      </div>
-
-      <div class="group">
-        <h3>Backend Diagnostics</h3>
-        <div class="row">
+        <h3>Backend Diagnostics (links)</h3>
+        <div class="row" style="margin-bottom:8px">
           <a class="btn ok" id="diagAlive" target="_blank">Check Backend Alive</a>
-          <a class="btn" id="diagStatusHS" target="_blank">/exec?action=viewStatus&site=HS</a>
-          <a class="btn" id="diagLogsHS" target="_blank">/exec?action=viewLogs&site=HS&limit=10</a>
         </div>
+        <div class="row">
+          <a class="btn" id="diagStatusHS" target="_blank">/exec?action=read&type=status&site=HS</a>
+          <a class="btn" id="diagLogsHS"   target="_blank">/exec?action=read&type=log&site=HS&limit=10</a>
+          <a class="btn" id="diagMap"      target="_blank">/exec?action=read&type=mapping</a>
+        </div>
+        <div class="tiny" style="margin-top:6px">These return JSON if the Web App is deployed to <b>Anyone with access</b>.</div>
       </div>
 
       <div class="group">
-        <h3>Google Sheet (Admin only)</h3>
-        <div class="row">
-          <a class="btn warn" id="openSheet" target="_blank">Open Spreadsheet</a>
+        <h3>Live Tester (inline)</h3>
+        <div class="row" style="gap:8px;align-items:center">
+          <label>Type
+            <select id="tType">
+              <option value="status">status</option>
+              <option value="log">log</option>
+              <option value="mapping">mapping</option>
+            </select>
+          </label>
+          <label>Site
+            <select id="tSite">
+              <option>HS</option><option>MS</option><option>S4</option>
+              <option>S5</option><option>ECC</option><option>DIST</option>
+            </select>
+          </label>
+          <label>Limit
+            <select id="tLimit">
+              <option>10</option><option selected>50</option><option>100</option><option>500</option><option>5000</option>
+            </select>
+          </label>
+          <button class="btn" id="btnBuild">Copy URL</button>
+          <a class="btn" id="btnOpen" target="_blank">Open URL</a>
+          <button class="btn primary" id="btnRun">Run & Show</button>
         </div>
+        <div class="mutedline" id="builtUrl" style="margin-top:6px"></div>
+        <pre id="output" style="margin-top:8px">No output yet.</pre>
       </div>
     </div>
 
     <div class="footer">
-      Tip: Right–click any button → “Copy link” to share with a building lead.  
-      If you redeploy Apps Script and the /exec changes, update the code.gs URL in your kiosk (or set it in Admin on the kiosk page).
+      Tip: If you <b>redeploy Apps Script</b> and the /exec URL changes, paste the new URL above and “Save URL”.  
+      All links and the tester will update automatically.
     </div>
   </div>
 </div>
 
 <script>
-  // ====== Set your bases here (you’re already using these) ======
-  const SITE_BASE   = 'https://lpsghub.github.io/lps_kiosk_fob_testing/'; // kiosk index
-  const VIEWER_BASE = 'https://lpsghub.github.io/lps_kiosk_fob_testing/fobviewer.html';
-  const EXEC_BASE   = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
-  const SHEET_URL   = 'https://docs.google.com/spreadsheets/d/12o1UwUyemjuXAWHh5rmm31VPWwX5UCLpEBPVm1CnIcc/edit';
+  // ====== Your bases (prefilled) ======
+  const SITE_BASE_DEFAULT   = 'https://lpsghub.github.io/lps_kiosk_fob_testing/';
+  const VIEWER_BASE_DEFAULT = 'https://lpsghub.github.io/lps_kiosk_fob_testing/fobviewer.html';
+  const EXEC_DEFAULT        = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+  const SHEET_URL           = 'https://docs.google.com/spreadsheets/d/12o1UwUyemjuXAWHh5rmm31VPWwX5UCLpEBPVm1CnIcc/edit';
 
-  // Put the bases on screen
-  document.getElementById('baseSite').textContent   = SITE_BASE;
-  document.getElementById('baseViewer').textContent = VIEWER_BASE;
-  document.getElementById('baseExec').textContent   = EXEC_BASE;
+  // ====== Elements ======
+  const $ = (id)=>document.getElementById(id);
+  const baseSiteEl  = $('baseSite');
+  const baseViewerEl= $('baseViewer');
+  const activeExec  = $('activeExec');
+  const execInput   = $('execInput');
+  const btnSaveExec = $('btnSaveExec');
+  $('openSheetInline').href = SHEET_URL;
 
-  // Helper to set hrefs
-  function set(id, url){ const a=document.getElementById(id); if(a) a.href=url; }
+  // Persisted Exec (for this admin page only)
+  function getExec(){ return (localStorage.getItem('ADMIN_EXEC')||'').trim() || EXEC_DEFAULT; }
+  function setExec(v){ localStorage.setItem('ADMIN_EXEC', String(v||'').trim()); refresh(); }
 
-  // Kiosk per site
-  set('hsKiosk',   SITE_BASE+'?site=HS');
-  set('msKiosk',   SITE_BASE+'?site=MS');
-  set('s4Kiosk',   SITE_BASE+'?site=S4');
-  set('s5Kiosk',   SITE_BASE+'?site=S5');
-  set('eccKiosk',  SITE_BASE+'?site=ECC');
-  set('distKiosk', SITE_BASE+'?site=DIST');
+  // Static bases
+  baseSiteEl.textContent   = SITE_BASE_DEFAULT;
+  baseViewerEl.textContent = VIEWER_BASE_DEFAULT;
 
-  // Viewer per site (Status / Logs)
-  set('hsStatus',  VIEWER_BASE+'?site=HS&mode=status');
-  set('hsLogs',    VIEWER_BASE+'?site=HS&mode=logs&limit=100');
+  // Kiosk links
+  function setHref(id, url){ const a=$(id); if(a) a.href=url; }
+  function refreshKiosks(){
+    setHref('hsKiosk',   SITE_BASE_DEFAULT+'?site=HS');
+    setHref('msKiosk',   SITE_BASE_DEFAULT+'?site=MS');
+    setHref('s4Kiosk',   SITE_BASE_DEFAULT+'?site=S4');
+    setHref('s5Kiosk',   SITE_BASE_DEFAULT+'?site=S5');
+    setHref('eccKiosk',  SITE_BASE_DEFAULT+'?site=ECC');
+    setHref('distKiosk', SITE_BASE_DEFAULT+'?site=DIST');
+  }
 
-  set('msStatus',  VIEWER_BASE+'?site=MS&mode=status');
-  set('msLogs',    VIEWER_BASE+'?site=MS&mode=logs&limit=100');
+  // Viewer links
+  function refreshViewers(){
+    setHref('hsStatus',   VIEWER_BASE_DEFAULT+'?site=HS&mode=status');
+    setHref('hsLogs',     VIEWER_BASE_DEFAULT+'?site=HS&mode=logs&limit=100');
+    setHref('msStatus',   VIEWER_BASE_DEFAULT+'?site=MS&mode=status');
+    setHref('msLogs',     VIEWER_BASE_DEFAULT+'?site=MS&mode=logs&limit=100');
+    setHref('s4Status',   VIEWER_BASE_DEFAULT+'?site=S4&mode=status');
+    setHref('s4Logs',     VIEWER_BASE_DEFAULT+'?site=S4&mode=logs&limit=100');
+    setHref('s5Status',   VIEWER_BASE_DEFAULT+'?site=S5&mode=status');
+    setHref('s5Logs',     VIEWER_BASE_DEFAULT+'?site=S5&mode=logs&limit=100');
+    setHref('eccStatus',  VIEWER_BASE_DEFAULT+'?site=ECC&mode=status');
+    setHref('eccLogs',    VIEWER_BASE_DEFAULT+'?site=ECC&mode=logs&limit=100');
+    setHref('distStatus', VIEWER_BASE_DEFAULT+'?site=DIST&mode=status');
+    setHref('distLogs',   VIEWER_BASE_DEFAULT+'?site=DIST&mode=logs&limit=100');
 
-  set('s4Status',  VIEWER_BASE+'?site=S4&mode=status');
-  set('s4Logs',    VIEWER_BASE+'?site=S4&mode=logs&limit=100');
+    setHref('allStatusIn', VIEWER_BASE_DEFAULT+'?site=ALL&mode=status&inOnly=true');
+    setHref('allLogs50',   VIEWER_BASE_DEFAULT+'?site=ALL&mode=logs&limit=50');
+  }
 
-  set('s5Status',  VIEWER_BASE+'?site=S5&mode=status');
-  set('s5Logs',    VIEWER_BASE+'?site=S5&mode=logs&limit=100');
+  // Diagnostics links (use action=read)
+  function refreshDiagnostics(){
+    const exec = getExec();
+    setHref('diagAlive',    exec);
+    setHref('diagStatusHS', exec+'?action=read&type=status&site=HS');
+    setHref('diagLogsHS',   exec+'?action=read&type=log&site=HS&limit=10');
+    setHref('diagMap',      exec+'?action=read&type=mapping');
+  }
 
-  set('eccStatus', VIEWER_BASE+'?site=ECC&mode=status');
-  set('eccLogs',   VIEWER_BASE+'?site=ECC&mode=logs&limit=100');
+  // Show current exec & set input box
+  function refresh(){
+    const exec = getExec();
+    activeExec.textContent = 'Active: '+exec;
+    execInput.value = localStorage.getItem('ADMIN_EXEC') || '';
+    refreshKiosks();
+    refreshViewers();
+    refreshDiagnostics();
+  }
+  btnSaveExec.onclick = ()=> setExec(execInput.value);
+  refresh();
 
-  set('distStatus',VIEWER_BASE+'?site=DIST&mode=status');
-  set('distLogs',  VIEWER_BASE+'?site=DIST&mode=logs&limit=100');
+  // ====== Live Tester ======
+  const tType  = $('tType');
+  const tSite  = $('tSite');
+  const tLimit = $('tLimit');
+  const built  = $('builtUrl');
+  const btnBuild = $('btnBuild');
+  const btnOpen  = $('btnOpen');
+  const btnRun   = $('btnRun');
+  const output   = $('output');
 
-  // Viewer multi-site
-  set('allStatusIn', VIEWER_BASE+'?site=ALL&mode=status&inOnly=true');
-  set('allLogs50',   VIEWER_BASE+'?site=ALL&mode=logs&limit=50');
+  function buildURL(){
+    const exec = getExec();
+    const type = tType.value;
+    const site = tSite.value;
+    const lim  = tLimit.value;
 
-  // Backend diagnostics
-  set('diagAlive',    EXEC_BASE);
-  set('diagStatusHS', EXEC_BASE+'?action=viewStatus&site=HS');
-  set('diagLogsHS',   EXEC_BASE+'?action=viewLogs&site=HS&limit=10');
+    const u = new URL(exec);
+    u.searchParams.set('action','read');
+    u.searchParams.set('type', type);
+    if (type!=='mapping') u.searchParams.set('site', site);
+    if (type==='log') u.searchParams.set('limit', lim);
+    return u.toString();
+  }
 
-  // Sheet
-  set('openSheet', SHEET_URL);
+  function copyToClipboard(text){
+    try{
+      navigator.clipboard.writeText(text);
+      built.textContent = 'Copied: '+text;
+    }catch(e){
+      built.textContent = text; // fallback: still show the URL
+    }
+  }
+
+  btnBuild.onclick = ()=>{
+    const url = buildURL();
+    btnOpen.href = url;
+    copyToClipboard(url);
+  };
+
+  btnOpen.onclick = ()=> { btnOpen.href = buildURL(); };
+
+  btnRun.onclick = async ()=>{
+    const url = buildURL();
+    btnOpen.href = url;
+    output.textContent = 'Loading…\n'+url;
+    try{
+      const res = await fetch(url, {method:'GET'});
+      const txt = await res.text();
+      try{
+        const json = JSON.parse(txt);
+        output.textContent = JSON.stringify(json, null, 2);
+      }catch{
+        output.textContent = txt; // not JSON? show raw
+      }
+    }catch(err){
+      output.textContent = 'Error: '+err.message+'\n'+url;
+    }
+  };
 </script>
 </body>
 </html>

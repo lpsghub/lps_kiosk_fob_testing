@@ -45,10 +45,10 @@
   <div class="wrap">
     <div class="card" id="card">
       <div class="brand" id="brandText">Lindenwold Staff Sign In/Out</div>
-      <button class="gear" id="btnGear" title="Admin" aria-label="Admin">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+      <button class="gear" id="btnGear" title="Admin">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
         </svg>
       </button>
 
@@ -113,7 +113,7 @@
   </div>
 
 <script>
-  // ===== Site presets =====
+  // ===== Sites =====
   const SITES = {
     HS:   'Lindenwold HS Staff Sign In/Out',
     MS:   'Lindenwold MS Staff Sign In/Out',
@@ -132,7 +132,7 @@
   const ADMIN_UI_PIN = '1234';
   const GAP_MS = 80;
   const MAX_LEN = 128;
-  const REQ_TIMEOUT_MS = 30000;   // 30s to ride out cold starts
+  const REQ_TIMEOUT_MS = 10000;  // 10s
   const AUTO_REFOCUS_MS = 20000;
 
   // ===== Elements =====
@@ -193,7 +193,6 @@
     const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
     defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
   }
-
   function renderSite(){
     const key = getSiteKey();
     const label = SITES[key] || SITES[DEFAULT_SITE];
@@ -202,14 +201,12 @@
     if (siteSelect) siteSelect.value = key;
   }
 
-  // Pre-warm on load and every 60s
-  function warmPing(){
+  // Keep Apps Script warm
+  setInterval(() => {
     const url = getScriptUrl();
     if (!url) return;
-    fetch(url + '?action=ping&nocache=' + Date.now(), { method: 'GET', cache:'no-store' }).catch(()=>{});
-  }
-  warmPing();
-  setInterval(warmPing, 60000);
+    fetch(url, { method: 'GET' }).catch(()=>{});
+  }, 60000);
 
   // Network banner
   function setNetBanner(){
@@ -220,7 +217,7 @@
   window.addEventListener('online',  setNetBanner);
   window.addEventListener('offline', setNetBanner);
 
-  // ===== Normalizer & masking =====
+  // Normalizer & masking
   function normalizeTag(s){ return String(s||'').trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,''); }
   function maskTag(s){
     const digits = String(s||'').replace(/\D/g,'');
@@ -228,65 +225,11 @@
     return '•••• ' + (last4 || '0000');
   }
 
-  // ===== Fetch helpers =====
-  async function fetchWithTimeout(url, options) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), REQ_TIMEOUT_MS);
-    try {
-      const res = await fetch(url, { ...options, signal: ctrl.signal });
-      return res;
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  async function tryPostThenGet(url, bodyObj, retries = 2) {
-    // always ping first (helps cold start)
-    await fetch(url + '?action=ping&nocache=' + Date.now(), { method: 'GET', cache: 'no-store' }).catch(()=>{});
-
-    let attempt = 0, lastErr;
-    while (attempt <= retries) {
-      try {
-        // POST first
-        const res = await fetchWithTimeout(url + '?nocache=' + Date.now(), {
-          method: 'POST',
-          headers: {'Content-Type':'application/x-www-form-urlencoded'},
-          body: new URLSearchParams(bodyObj)
-        });
-        const txt = await res.text();
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-        return txt || 'OK';
-      } catch (e) {
-        lastErr = e;
-        // backoff and retry POST
-        if (attempt < retries) {
-          const back = 600 * Math.pow(2, attempt) + Math.floor(Math.random()*200);
-          await new Promise(r=>setTimeout(r, back));
-          attempt++;
-          continue;
-        }
-      }
-      break;
-    }
-
-    // Final fallback: GET swipe (backend supports doGet swipe)
-    try {
-      const qp = new URLSearchParams(bodyObj);
-      const res = await fetchWithTimeout(url + '?' + qp.toString() + '&nocache=' + Date.now(), { method:'GET', cache:'no-store' });
-      const txt = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-      return txt || 'OK';
-    } catch (e2) {
-      throw lastErr || e2;
-    }
-  }
-
-  // ===== Submit flow =====
+  // Submit to Apps Script
   async function submitTag(raw){
-    const url  = getScriptUrl();
-    const tag  = normalizeTag(raw);
+    const url = getScriptUrl();
+    const tag = normalizeTag(raw);
     const site = getSiteKey();
-
     if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
     if(!tag){ showError('Invalid swipe.'); return; }
 
@@ -294,27 +237,69 @@
     const t0 = performance.now();
 
     try{
-      const text = await tryPostThenGet(url, { tag, site }, 2);
+      const text = await tryFetchWithRetry(url, {tag, site}, 2, [300, 800]);
       showResponse(text);
       lastEl.textContent = `Response in ${Math.round(performance.now()-t0)} ms — ${new Date().toLocaleTimeString()}`;
       setNetBanner();
     }catch(err){
-      const msg = String(err && err.message || err || '');
-      if (msg.includes('AbortError')) {
-        showError('Server took too long (timeout). Try one more swipe.');
-      } else if (/HTTP\s+5\d\d/.test(msg)) {
-        showError('Server error from Apps Script. Try again.');
-      } else if (/HTTP\s+4\d\d/.test(msg)) {
-        showError('Request rejected. Check Web App deployment access and URL.');
+      const warmed = await warmAndRetry(url, {tag, site}).catch(()=>null);
+      if (warmed) {
+        showResponse(warmed);
+        lastEl.textContent = `Recovered after warm-up — ${new Date().toLocaleTimeString()}`;
       } else {
-        showError('Network hiccup or server slow. Try again.');
+        showError('Taking longer than expected. Check Wi-Fi or try again.');
+        setNetBanner();
       }
-      setNetBanner();
-      console.warn('Swipe error:', err);
     }
   }
 
-  // ===== UI helpers =====
+  // fetch with timeout + retries
+  async function tryFetchWithRetry(url, data, retries, backoffsMs){
+    const doPost = () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), REQ_TIMEOUT_MS);
+      const body = new URLSearchParams(data);
+      return fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body,
+        signal: ctrl.signal
+      }).finally(()=>clearTimeout(timer));
+    };
+
+    let lastErr;
+    for (let i=0;i<=retries;i++){
+      try{
+        const res = await doPost();
+        const txt = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${txt}`);
+        return txt;
+      }catch(e){
+        lastErr = e;
+        if (i < retries){
+          await new Promise(r=>setTimeout(r, backoffsMs[i] || 500));
+          continue;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  async function warmAndRetry(url, data){
+    try{ await fetch(url, { method:'GET' }); }catch{}
+    try{
+      const r = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams(data)
+      });
+      return await r.text();
+    }catch(e){
+      return null;
+    }
+  }
+
+  // UI helpers
   function showPending(t){ statusEl.textContent = t; statusEl.className='status'; }
   function showResponse(text){
     const t = String(text||'');
@@ -332,15 +317,14 @@
     else card.classList.add('flash-err');
   }
 
-  // ===== Global capture with idle-submit =====
+  // Keyboard capture
   let buf=''; let lastTs=0; let submitTimer=null;
   function isEditable(el){ if(!el) return false; if(el.isContentEditable) return true; const t=el.tagName; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'; }
   function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=''; if(out) submitTag(out); }, GAP_MS); }
 
   document.addEventListener('keydown', (evt) => {
     if(isEditable(evt.target) && evt.target.id!=='rfidHidden') return;
-    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf='';
-    lastTs = now;
+    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf=''; lastTs = now;
     if(/^[A-Za-z0-9.\-]$/.test(evt.key)){ if(buf.length<MAX_LEN) buf += evt.key; scheduleIdleSubmit(); evt.preventDefault(); }
     else if(evt.key==='Enter' || evt.key==='Tab'){ clearTimeout(submitTimer); const out=normalizeTag(buf); buf=''; if(out) submitTag(out); evt.preventDefault(); }
   });
@@ -349,7 +333,7 @@
     if(e.key==='Enter' || e.key==='Tab'){ const out=normalizeTag(hiddenInput.value); hiddenInput.value=''; if(out) submitTag(out); e.preventDefault(); }
   });
 
-  // ===== Admin modal =====
+  // Admin modal
   function openAdmin() {
     adminModal.style.display = 'flex';
     document.body.dataset.adminOpen = '1';
@@ -365,7 +349,7 @@
     delete document.body.dataset.adminOpen;
     window.focus(); document.body.focus(); hiddenInput.focus();
   }
-  btnGear.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openAdmin(); });
+  document.getElementById('btnGear').addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openAdmin(); });
   document.addEventListener('keydown', (ev) => {
     if (ev.ctrlKey && ev.shiftKey && (ev.key==='A' || ev.key==='a')) { ev.preventDefault(); openAdmin(); }
   });
@@ -392,22 +376,26 @@
     showPending('Settings cleared. Using defaults.');
   });
   btnManualReset.addEventListener('click', async () => {
-    const url = getScriptUrl(); const token = getAdminToken();
+    const url = getScriptUrl(); const token = getAdminToken(); const site=getSiteKey();
     if(!url) return alert('Set and save the Web App URL first.');
     if(!token) return alert('Enter the admin token.');
     showPending('Running manual reset…');
     try{
-      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token})});
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token,site})});
       showResponse(await r.text());
     }catch{ showError('Error running manual reset.'); }
   });
   btnTest.addEventListener('click', async () => {
-    const url=getScriptUrl(); if(!url) return alert('Set your Web App URL first.');
+    const url=getScriptUrl(); const site=getSiteKey(); if(!url) return alert('Set your Web App URL first.');
     showPending('Pinging endpoint…');
-    try{ const r=await fetch(url + '?action=ping&nocache=' + Date.now(),{method:'GET', cache:'no-store'}); const txt=await r.text(); showResponse(txt||'OK'); }
-    catch{ showError('Endpoint not reachable. Check URL/network.'); }
+    try{
+      // quick POST ping verifies POST path too
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'ping',site})});
+      const txt=await r.text(); showResponse(txt||'OK');
+    } catch{ showError('Endpoint not reachable. Check URL/network.'); }
   });
 
+  // Focus & init
   window.addEventListener('load', () => {
     renderSite();
     window.focus(); document.body.focus(); hiddenInput.focus();

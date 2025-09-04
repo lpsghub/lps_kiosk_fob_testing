@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lindenwold Attendance — Data Viewer</title>
+<style>
+  :root{--bg:#0e1116;--card:#151a21;--muted:#9fb0c3;--accent:#2d7ef7;--border:#263246;--ok:#2ecc71;--out:#f39c12;}
+  html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{min-height:100%;padding:3vh 3vw}
+  .card{background:#11161d;border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  h1{margin:0 0 12px;font-size:28px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+  select,input,button{background:#0c1219;border:1px solid #28405d;color:#e8eef4;border-radius:10px;padding:8px 10px;font-size:14px}
+  button.primary{background:var(--accent);border-color:#2b6fe0;cursor:pointer}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  th,td{border-bottom:1px solid #1e2a3b;padding:8px 10px;text-align:left;white-space:nowrap}
+  th{cursor:pointer;position:relative}
+  th .sort{position:absolute;right:6px;opacity:.6}
+  .muted{color:var(--muted);font-size:12px}
+  .pill{display:inline-block;border:1px solid #365082;border-radius:999px;padding:2px 8px;font-size:12px;margin-left:8px}
+  .status-ok{color:var(--ok)} .status-out{color:var(--out)}
+  details{margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>
+      Lindenwold Attendance — Data Viewer
+      <span id="siteLabel" class="pill"></span>
+      <span id="typeLabel" class="pill"></span>
+    </h1>
+
+    <div class="row">
+      <label>Site
+        <select id="site">
+          <option value="HS">HS</option>
+          <option value="MS">MS</option>
+          <option value="S4">S4</option>
+          <option value="S5">S5</option>
+          <option value="ECC">ECC</option>
+          <option value="DIST">DIST</option>
+        </select>
+      </label>
+
+      <label>Data
+        <select id="dtype">
+          <option value="status">Status</option>
+          <option value="log">Log</option>
+          <option value="mapping">TagMapping</option>
+        </select>
+      </label>
+
+      <input id="search" type="text" placeholder="Search name, tag, status…" />
+      <label>From <input id="from" type="date"></label>
+      <label>To <input id="to" type="date"></label>
+
+      <button id="btnLoad" class="primary">Load</button>
+      <button id="btnCSV">Export CSV</button>
+    </div>
+
+    <div class="muted" id="meta"></div>
+
+    <table id="grid">
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <details>
+      <summary>Endpoint settings</summary>
+      <div class="row" style="margin-top:8px;">
+        <input id="execUrl" type="text" style="min-width:420px" placeholder="https://script.google.com/.../exec" />
+        <button id="btnSaveUrl">Save URL</button>
+        <span class="muted" id="activeUrl"></span>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+const DEFAULT_EXEC = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+const SITES = {HS:'Lindenwold HS Staff Sign In/Out', MS:'Lindenwold MS Staff Sign In/Out', S4:'Lindenwold S4 Staff Sign In/Out', S5:'Lindenwold S5 Staff Sign In/Out', ECC:'Lindenwold ECC Staff Sign In/Out', DIST:'Lindenwold Staff Sign In/Out'};
+
+const el = id => document.getElementById(id);
+const site = el('site'), dtype = el('dtype'), search = el('search'), from = el('from'), to = el('to');
+const btnLoad = el('btnLoad'), btnCSV = el('btnCSV');
+const thead = el('thead'), tbody = el('tbody'), meta = el('meta');
+const siteLabel = el('siteLabel'), typeLabel = el('typeLabel');
+const execUrl = el('execUrl'), activeUrl = el('activeUrl'), btnSaveUrl = el('btnSaveUrl');
+
+function getExec(){
+  return (localStorage.getItem('viewerExec')||'').trim() || DEFAULT_EXEC;
+}
+function setExec(v){
+  localStorage.setItem('viewerExec', String(v||'').trim());
+  activeUrl.textContent = `Active: ${getExec()}`;
+}
+
+function paramsFromURL(){
+  const q = new URLSearchParams(location.search);
+  const s = (q.get('site')||'').toUpperCase();
+  const t = (q.get('type')||'status').toLowerCase();
+  if (SITES[s]) site.value = s;
+  if (['status','log','mapping'].includes(t)) dtype.value = t;
+}
+paramsFromURL();
+execUrl.value = localStorage.getItem('viewerExec')||'';
+setExec(getExec());
+siteLabel.textContent = SITES[site.value];
+typeLabel.textContent = dtype.value.toUpperCase();
+
+btnSaveUrl.onclick = ()=> setExec(execUrl.value);
+
+site.onchange = ()=> { siteLabel.textContent = SITES[site.value]; };
+dtype.onchange = ()=> { typeLabel.textContent = dtype.value.toUpperCase(); draw([]); };
+
+function fmtLocal(tsISO){
+  if (!tsISO) return '';
+  const d = new Date(tsISO);
+  return d.toLocaleString([], {hour:'numeric', minute:'2-digit', second:'2-digit', year:'numeric', month:'numeric', day:'numeric'});
+}
+
+let currentRows = [];
+let currentHeaders = [];
+
+function draw(rows){
+  tbody.innerHTML = '';
+  thead.innerHTML = '';
+  if (!rows || rows.length === 0){
+    currentHeaders = [];
+    meta.textContent = '0 rows.';
+    return;
+  }
+
+  // derive headers from first row keys and map column order by type
+  let order = [];
+  if (dtype.value==='status') order = ['tagId','first','last','status','time'];
+  else if (dtype.value==='log') order = ['time','tagId','first','last','action'];
+  else order = ['tagId','first','last'];
+
+  currentHeaders = order.filter(k => k in rows[0]);
+
+  // header row (click to sort)
+  currentHeaders.forEach((h,i)=>{
+    const th = document.createElement('th');
+    th.textContent = h.toUpperCase();
+    const s = document.createElement('span'); s.className='sort'; s.textContent='↕';
+    th.appendChild(s);
+    th.onclick = ()=> sortBy(h);
+    thead.appendChild(th);
+  });
+
+  // body
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    currentHeaders.forEach(h=>{
+      const td = document.createElement('td');
+      let val = r[h] || '';
+      if (h==='time') val = fmtLocal(val);
+      if (h==='status'){
+        td.className = (String(val).toLowerCase()==='in') ? 'status-ok' : 'status-out';
+      }
+      td.textContent = val;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  meta.textContent = `${rows.length} row(s)`;
+}
+
+function sortBy(key){
+  currentRows.sort((a,b)=>{
+    const av=a[key]||'', bv=b[key]||'';
+    if (key==='time') return (new Date(av)) - (new Date(bv));
+    return String(av).localeCompare(String(bv), undefined, {numeric:true, sensitivity:'base'});
+  });
+  draw(currentRows);
+}
+
+function csvEscape(s){
+  if (s==null) return '';
+  s = String(s);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function exportCSV(){
+  const hdr = currentHeaders.join(',');
+  const lines = currentRows.map(r => currentHeaders.map(k=>{
+    if (k==='time') return csvEscape(fmtLocal(r[k]));
+    return csvEscape(r[k]);
+  }).join(','));
+  const blob = new Blob([hdr+'\n'+lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${dtype.value}_${site.value}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+btnCSV.onclick = exportCSV;
+
+function applyFilters(rows){
+  const q = (search.value||'').trim().toLowerCase();
+  const fromD = from.value ? new Date(from.value+'T00:00:00') : null;
+  const toD   = to.value   ? new Date(to.value+'T23:59:59') : null;
+
+  return rows.filter(r=>{
+    // text search across relevant fields
+    const hay = (r.tagId||'')+' '+(r.first||'')+' '+(r.last||'')+' '+(r.status||'')+' '+(r.action||'');
+    if (q && !hay.toLowerCase().includes(q)) return false;
+
+    // date filter (only for time-bearing rows)
+    if (r.time){
+      const t = new Date(r.time);
+      if (fromD && t < fromD) return false;
+      if (toD && t > toD) return false;
+    }
+    return true;
+  });
+}
+
+async function loadData(){
+  const url = new URL(getExec());
+  url.searchParams.set('action','read');
+  url.searchParams.set('type', dtype.value);
+  if (dtype.value!=='mapping') url.searchParams.set('site', site.value);
+  url.searchParams.set('limit','5000');
+
+  meta.textContent = 'Loading…';
+  try{
+    const res = await fetch(url.toString(), {method:'GET'});
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error||'Unknown error');
+    currentRows = applyFilters(data.rows||[]);
+    draw(currentRows);
+  }catch(err){
+    meta.textContent = 'Error: '+err.message;
+    draw([]);
+  }
+}
+
+btnLoad.onclick = loadData;
+search.oninput = ()=> draw(applyFilters(currentRows));
+from.onchange = ()=> draw(applyFilters(currentRows));
+to.onchange = ()=> draw(applyFilters(currentRows));
+
+// auto-load on open
+loadData();
+</script>
+</body>
+</html>

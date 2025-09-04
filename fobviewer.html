@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lindenwold Attendance Viewer</title>
+<style>
+  :root{--bg:#0e1116;--card:#151a21;--muted:#9fb0c3;--accent:#2d7ef7;--ok:#2ecc71;--out:#f39c12;}
+  html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:center;padding:4vh 3vw}
+  .card{width:min(1200px,96vw);background:#141922;border:1px solid #202835;border-radius:20px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  h1{margin:0 0 12px;font-size:clamp(24px,3.4vw,34px)}
+  .bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
+  select,input,button{background:#0c1219;border:1px solid #2a3a4d;color:#e8eef4;border-radius:10px;padding:10px 12px;font-size:15px}
+  button.primary{background:var(--accent);border-color:#2b6fe0}
+  button.ghost{background:#0c121900}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:10px;border-bottom:1px solid #223043;font-size:14px}
+  th{user-select:none;cursor:pointer;text-align:left;color:#cdd8e7}
+  tr:hover{background:#111823}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px}
+  .in{background:rgba(46,204,113,.15);color:var(--ok);border:1px solid rgba(46,204,113,.35)}
+  .out{background:rgba(243,156,18,.15);color:var(--out);border:1px solid rgba(243,156,18,.35)}
+  .muted{color:#9fb0c3}
+  .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1 id="title">Attendance Viewer</h1>
+
+    <div class="bar">
+      <label>Site
+        <select id="site">
+          <option value="ALL">ALL</option>
+          <option value="HS">HS</option>
+          <option value="MS">MS</option>
+          <option value="S4">S4</option>
+          <option value="S5">S5</option>
+          <option value="ECC">ECC</option>
+          <option value="DIST">DIST</option>
+        </select>
+      </label>
+
+      <label>View
+        <select id="viewMode">
+          <option value="status">Current Status</option>
+          <option value="logs" selected>Log History</option>
+        </select>
+      </label>
+
+      <label id="actionWrap">Action
+        <select id="actionFilter">
+          <option value="">(All)</option>
+          <option value="in">in</option>
+          <option value="out">out</option>
+          <option value="auto-checkout">auto-checkout</option>
+        </select>
+      </label>
+
+      <label id="inOnlyWrap" style="display:none">
+        <input type="checkbox" id="inOnly">
+        Currently IN only
+      </label>
+
+      <label id="searchWrap">Search
+        <input id="search" type="text" placeholder="name or tag…">
+      </label>
+
+      <div class="spacer"></div>
+
+      <button id="exportCsv" class="ghost">Export CSV</button>
+      <button id="refresh" class="primary">Refresh</button>
+      <span class="muted" id="meta"></span>
+    </div>
+
+    <table id="tbl">
+      <thead>
+        <tr id="hdr"></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // === CONFIG: your Apps Script /exec URL ===
+  const EXEC_URL = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+
+  const SITE_LABELS = {
+    HS:'Lindenwold HS Staff Sign In/Out',
+    MS:'Lindenwold MS Staff Sign In/Out',
+    S4:'Lindenwold S4 Staff Sign In/Out',
+    S5:'Lindenwold S5 Staff Sign In/Out',
+    ECC:'Lindenwold ECC Staff Sign In/Out',
+    DIST:'Lindenwold Staff Sign In/Out'
+  };
+
+  // --- elements
+  const titleEl = document.getElementById('title');
+  const siteEl = document.getElementById('site');
+  const modeEl = document.getElementById('viewMode');
+  const actionEl = document.getElementById('actionFilter');
+  const inOnlyWrap = document.getElementById('inOnlyWrap');
+  const inOnlyEl = document.getElementById('inOnly');
+  const searchEl = document.getElementById('search');
+  const refreshBtn = document.getElementById('refresh');
+  const exportBtn = document.getElementById('exportCsv');
+  const hdrEl = document.getElementById('hdr');
+  const rowsEl = document.getElementById('rows');
+  const metaEl = document.getElementById('meta');
+  const actionWrap = document.getElementById('actionWrap');
+
+  // init from URL ?site=HS|ALL&mode=logs
+  const q = new URLSearchParams(location.search);
+  if (q.get('site')) siteEl.value = q.get('site').toUpperCase();
+  if (q.get('mode')) modeEl.value = q.get('mode');
+  if (q.get('inOnly')) inOnlyEl.checked = (q.get('inOnly') === 'true');
+
+  function fmt12(d){
+    if (!d) return '';
+    const dt = (d instanceof Date) ? d : new Date(d);
+    return dt.toLocaleString('en-US', {hour12:true});
+  }
+  function text(x){ return document.createTextNode(x); }
+
+  let sortKey = '', sortDir = 'desc';
+  let currentHeads = [], currentRows = [];
+
+  function setTitle(){
+    const key = siteEl.value.toUpperCase();
+    const siteLabel = (key==='ALL') ? 'All Sites' : (SITE_LABELS[key] || key);
+    titleEl.textContent = siteLabel + ' — ' + (modeEl.value==='status' ? 'Current Status' : 'Log History');
+  }
+
+  function renderTable(heads, rows){
+    currentHeads = heads.slice();
+    currentRows = rows.slice();
+
+    // set headers
+    hdrEl.innerHTML = '';
+    heads.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h.label;
+      th.dataset.key = h.key;
+      th.onclick = () => {
+        if (sortKey === h.key) sortDir = (sortDir==='asc'?'desc':'asc');
+        else { sortKey = h.key; sortDir = h.defaultDir || 'asc'; }
+        renderTable(heads, rows);
+      };
+      if (sortKey === h.key){
+        th.textContent += sortDir==='asc' ? ' ▲' : ' ▼';
+      }
+      hdrEl.appendChild(th);
+    });
+
+    // sort
+    const sorted = rows.slice().sort((a,b)=>{
+      const A = a[sortKey] ?? '';
+      const B = b[sortKey] ?? '';
+      if (A < B) return (sortDir==='asc'? -1 : 1);
+      if (A > B) return (sortDir==='asc'? 1 : -1);
+      return 0;
+    });
+
+    // filter search
+    const term = (searchEl.value||'').trim().toLowerCase();
+    const filtered = term ? sorted.filter(r => {
+      return (r.name||'').toLowerCase().includes(term) ||
+             (r.tagId||'').toLowerCase().includes(term) ||
+             (r.site||'').toLowerCase().includes(term);
+    }) : sorted;
+
+    // rows
+    rowsEl.innerHTML = '';
+    filtered.forEach(r=>{
+      const tr = document.createElement('tr');
+      heads.forEach(h => {
+        const td = document.createElement('td');
+        let val = r[h.key];
+        if (h.key==='timestamp' || h.key==='time') val = fmt12(val);
+        if (h.key==='action' || h.key==='status'){
+          const span = document.createElement('span');
+          span.className = 'pill ' + ((val||'').toLowerCase());
+          span.textContent = val || '';
+          td.appendChild(span);
+        } else {
+          td.appendChild(text(val==null?'':String(val)));
+        }
+        tr.appendChild(td);
+      });
+      rowsEl.appendChild(tr);
+    });
+
+    metaEl.textContent = `${filtered.length} row(s) shown`;
+  }
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {method:'GET'});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  async function refresh(){
+    setTitle();
+    const site = siteEl.value;
+    if (modeEl.value === 'status'){
+      actionWrap.style.display = 'none';
+      inOnlyWrap.style.display = '';
+      const url = `${EXEC_URL}?action=viewStatus&site=${encodeURIComponent(site)}${inOnlyEl.checked?'&inOnly=true':''}`;
+      const data = await fetchJSON(url);
+      // shape rows
+      const rows = (data.rows||[]).map(x => ({
+        site: (site==='ALL') ? x.site : site,
+        tagId: x.tagId,
+        name: `${x.last||''}, ${x.first||''}`.replace(/^,\s*/,''),
+        status: x.status,
+        time: x.time
+      }));
+      const heads = [];
+      if (site==='ALL') heads.push({key:'site', label:'Site', defaultDir:'asc'});
+      heads.push(
+        {key:'name', label:'Name', defaultDir:'asc'},
+        {key:'tagId', label:'Tag ID'},
+        {key:'status', label:'Status'},
+        {key:'time', label:'Last Swipe'}
+      );
+      sortKey = sortKey || (site==='ALL' ? 'site' : 'name');
+      renderTable(heads, rows);
+    } else {
+      actionWrap.style.display = '';
+      inOnlyWrap.style.display = 'none';
+      const act = actionEl.value;
+      const url = `${EXEC_URL}?action=viewLogs&site=${encodeURIComponent(site)}&limit=2000${act?`&actionFilter=${encodeURIComponent(act)}`:''}`;
+      const data = await fetchJSON(url);
+      const rows = (data.rows||[]).map(x => ({
+        site: (site==='ALL') ? x.site : site,
+        timestamp: x.timestamp,
+        name: `${x.last||''}, ${x.first||''}`.replace(/^,\s*/,''),
+        tagId: x.tagId,
+        action: x.action
+      }));
+      const heads = [];
+      if (site==='ALL') heads.push({key:'site', label:'Site', defaultDir:'asc'});
+      heads.push(
+        {key:'timestamp', label:'Timestamp', defaultDir:'desc'},
+        {key:'name', label:'Name'},
+        {key:'tagId', label:'Tag ID'},
+        {key:'action', label:'Action'}
+      );
+      sortKey = sortKey || 'timestamp';
+      renderTable(heads, rows);
+    }
+  }
+
+  // CSV export of the **currently shown table**
+  function exportCurrentCSV(){
+    if (!currentHeads.length) return;
+    const rows = [];
+    rows.push(currentHeads.map(h => h.label));
+    currentRows.forEach(r=>{
+      const line = currentHeads.map(h=>{
+        let v = r[h.key];
+        if (h.key==='timestamp' || h.key==='time') v = fmt12(v);
+        v = (v==null ? '' : String(v));
+        // basic CSV escaping
+        if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+        return v;
+      });
+      rows.push(line);
+    });
+    const csv = rows.map(a=>a.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    const key = siteEl.value;
+    const mode = modeEl.value;
+    a.href = URL.createObjectURL(blob);
+    a.download = `attendance_${key}_${mode}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // events
+  siteEl.onchange = refresh;
+  modeEl.onchange = refresh;
+  actionEl.onchange = refresh;
+  inOnlyEl.onchange = refresh;
+  searchEl.oninput = () => renderTable(currentHeads, currentRows);
+  refreshBtn.onclick = refresh;
+  exportBtn.onclick = exportCurrentCSV;
+
+  // initial
+  refresh().catch(err=>{
+    metaEl.textContent = 'Error loading data. Check that your Web App is deployed to Anyone with access.';
+    console.error(err);
+  });
+</script>
+</body>
+</html>

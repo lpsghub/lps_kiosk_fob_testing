@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lindenwold Kiosk — Admin Portal</title>
+<style>
+  :root{
+    --bg:#0e1116; --card:#151a21; --muted:#9fb0c3; --accent:#2d7ef7;
+    --ok:#2ecc71; --warn:#f39c12; --err:#e74c3c; --line:#202835;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:#e8eef4;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
+  .card{width:min(1100px,96vw);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 30px 80px rgba(0,0,0,.35);position:relative}
+  h1{margin:0 0 8px;font-size:clamp(28px,3.6vw,40px);font-weight:800}
+  p.muted{color:var(--muted);margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+  .group{border:1px solid var(--line);border-radius:16px;padding:14px}
+  .group h3{margin:0 0 8px;font-size:18px;font-weight:700;color:#dfe8f5}
+  .row{display:flex;flex-wrap:wrap;gap:8px}
+  a.btn{display:inline-block;text-decoration:none;border:1px solid #263246;background:#18202b;color:#e8eef4;border-radius:12px;padding:10px 12px;font-size:15px}
+  a.btn.primary{background:var(--accent);border-color:#2b6fe0}
+  a.btn.ok{background:var(--ok);border-color:#25b863}
+  a.btn.warn{background:var(--warn);border-color:#d4860d;color:#1d1200}
+  code{background:#0c1219;border:1px solid #213044;color:#b9cee6;border-radius:8px;padding:2px 6px}
+  .footer{margin-top:18px;color:#9fb0c3;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Lindenwold Kiosk — Admin Portal</h1>
+    <p class="muted">Quick links to kiosks, viewers, backend diagnostics, and the data sheet.</p>
+
+    <!-- You can change these three if you ever rename things -->
+    <div class="group">
+      <h3>Config (read-only)</h3>
+      <div class="row" style="gap:14px;align-items:center">
+        <div>Site base: <code id="baseSite"></code></div>
+        <div>Viewer base: <code id="baseViewer"></code></div>
+        <div>Apps Script: <code id="baseExec"></code></div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="group">
+        <h3>HS (High School)</h3>
+        <div class="row">
+          <a class="btn primary" id="hsKiosk" target="_blank">Open Kiosk — HS</a>
+          <a class="btn" id="hsStatus" target="_blank">Viewer: Status (HS)</a>
+          <a class="btn" id="hsLogs" target="_blank">Viewer: Logs (HS)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>MS (Middle School)</h3>
+        <div class="row">
+          <a class="btn primary" id="msKiosk" target="_blank">Open Kiosk — MS</a>
+          <a class="btn" id="msStatus" target="_blank">Viewer: Status (MS)</a>
+          <a class="btn" id="msLogs" target="_blank">Viewer: Logs (MS)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>S4</h3>
+        <div class="row">
+          <a class="btn primary" id="s4Kiosk" target="_blank">Open Kiosk — S4</a>
+          <a class="btn" id="s4Status" target="_blank">Viewer: Status (S4)</a>
+          <a class="btn" id="s4Logs" target="_blank">Viewer: Logs (S4)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>S5</h3>
+        <div class="row">
+          <a class="btn primary" id="s5Kiosk" target="_blank">Open Kiosk — S5</a>
+          <a class="btn" id="s5Status" target="_blank">Viewer: Status (S5)</a>
+          <a class="btn" id="s5Logs" target="_blank">Viewer: Logs (S5)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>ECC</h3>
+        <div class="row">
+          <a class="btn primary" id="eccKiosk" target="_blank">Open Kiosk — ECC</a>
+          <a class="btn" id="eccStatus" target="_blank">Viewer: Status (ECC)</a>
+          <a class="btn" id="eccLogs" target="_blank">Viewer: Logs (ECC)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>District Office</h3>
+        <div class="row">
+          <a class="btn primary" id="distKiosk" target="_blank">Open Kiosk — DIST</a>
+          <a class="btn" id="distStatus" target="_blank">Viewer: Status (DIST)</a>
+          <a class="btn" id="distLogs" target="_blank">Viewer: Logs (DIST)</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="group">
+        <h3>Viewer (multi-site)</h3>
+        <div class="row">
+          <a class="btn" id="allStatusIn" target="_blank">Status (All sites, IN only)</a>
+          <a class="btn" id="allLogs50" target="_blank">Logs (All sites, last 50)</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Backend Diagnostics</h3>
+        <div class="row">
+          <a class="btn ok" id="diagAlive" target="_blank">Check Backend Alive</a>
+          <a class="btn" id="diagStatusHS" target="_blank">/exec?action=viewStatus&site=HS</a>
+          <a class="btn" id="diagLogsHS" target="_blank">/exec?action=viewLogs&site=HS&limit=10</a>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Google Sheet (Admin only)</h3>
+        <div class="row">
+          <a class="btn warn" id="openSheet" target="_blank">Open Spreadsheet</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Tip: Right–click any button → “Copy link” to share with a building lead.  
+      If you redeploy Apps Script and the /exec changes, update the code.gs URL in your kiosk (or set it in Admin on the kiosk page).
+    </div>
+  </div>
+</div>
+
+<script>
+  // ====== Set your bases here (you’re already using these) ======
+  const SITE_BASE   = 'https://lpsghub.github.io/lps_kiosk_fob_testing/'; // kiosk index
+  const VIEWER_BASE = 'https://lpsghub.github.io/lps_kiosk_fob_testing/fobviewer.html';
+  const EXEC_BASE   = 'https://script.google.com/macros/s/AKfycbwD-u9LxKnXKKI87qfJMFuGOkJWjYAT0XyQu5GPii-DNbpqm_Wcl1xrfhsLwdZlFr4/exec';
+  const SHEET_URL   = 'https://docs.google.com/spreadsheets/d/12o1UwUyemjuXAWHh5rmm31VPWwX5UCLpEBPVm1CnIcc/edit';
+
+  // Put the bases on screen
+  document.getElementById('baseSite').textContent   = SITE_BASE;
+  document.getElementById('baseViewer').textContent = VIEWER_BASE;
+  document.getElementById('baseExec').textContent   = EXEC_BASE;
+
+  // Helper to set hrefs
+  function set(id, url){ const a=document.getElementById(id); if(a) a.href=url; }
+
+  // Kiosk per site
+  set('hsKiosk',   SITE_BASE+'?site=HS');
+  set('msKiosk',   SITE_BASE+'?site=MS');
+  set('s4Kiosk',   SITE_BASE+'?site=S4');
+  set('s5Kiosk',   SITE_BASE+'?site=S5');
+  set('eccKiosk',  SITE_BASE+'?site=ECC');
+  set('distKiosk', SITE_BASE+'?site=DIST');
+
+  // Viewer per site (Status / Logs)
+  set('hsStatus',  VIEWER_BASE+'?site=HS&mode=status');
+  set('hsLogs',    VIEWER_BASE+'?site=HS&mode=logs&limit=100');
+
+  set('msStatus',  VIEWER_BASE+'?site=MS&mode=status');
+  set('msLogs',    VIEWER_BASE+'?site=MS&mode=logs&limit=100');
+
+  set('s4Status',  VIEWER_BASE+'?site=S4&mode=status');
+  set('s4Logs',    VIEWER_BASE+'?site=S4&mode=logs&limit=100');
+
+  set('s5Status',  VIEWER_BASE+'?site=S5&mode=status');
+  set('s5Logs',    VIEWER_BASE+'?site=S5&mode=logs&limit=100');
+
+  set('eccStatus', VIEWER_BASE+'?site=ECC&mode=status');
+  set('eccLogs',   VIEWER_BASE+'?site=ECC&mode=logs&limit=100');
+
+  set('distStatus',VIEWER_BASE+'?site=DIST&mode=status');
+  set('distLogs',  VIEWER_BASE+'?site=DIST&mode=logs&limit=100');
+
+  // Viewer multi-site
+  set('allStatusIn', VIEWER_BASE+'?site=ALL&mode=status&inOnly=true');
+  set('allLogs50',   VIEWER_BASE+'?site=ALL&mode=logs&limit=50');
+
+  // Backend diagnostics
+  set('diagAlive',    EXEC_BASE);
+  set('diagStatusHS', EXEC_BASE+'?action=viewStatus&site=HS');
+  set('diagLogsHS',   EXEC_BASE+'?action=viewLogs&site=HS&limit=10');
+
+  // Sheet
+  set('openSheet', SHEET_URL);
+</script>
+</body>
+</html>

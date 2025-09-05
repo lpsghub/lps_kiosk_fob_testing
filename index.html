@@ -11,12 +11,17 @@
   .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
   .card{width:min(1000px,96vw);background:var(--card);border:1px solid #202835;border-radius:22px;padding:4vh 4vw;box-shadow:0 30px 80px rgba(0,0,0,.35);position:relative}
   .brand{position:absolute;top:18px;left:24px;color:var(--muted);font-size:14px;letter-spacing:.08em;text-transform:uppercase}
-  .gear{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:12px;border:1px solid #243041;display:grid;place-items:center;color:#cfd9e6;background:#11161d}
+  .gear{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:12px;border:1px solid #243041;display:grid;place-items:center;color:#cfd9e6;background:#11161d;cursor:pointer}
+  .gear:hover{background:#0f141b}
   .title{font-size:clamp(32px,4.2vw,56px);margin:18px 0 10px;font-weight:800;letter-spacing:.02em}
   .status{margin:18px 0 10px;font-size:clamp(32px,4vw,50px);font-weight:800;line-height:1.15}
   .status.ok{color:var(--ok)} .status.out{color:var(--out)} .status.err{color:var(--err)}
   .hint{font-size:clamp(16px,1.8vw,18px);color:var(--muted)}
   .last{margin-top:14px;color:#b7c6d8;font-size:clamp(14px,1.6vw,16px)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+  button{font-size:18px;padding:12px 16px;border-radius:12px;border:1px solid #263246;background:#18202b;color:#e8eef4;cursor:pointer}
+  button.primary{background:var(--accent);border-color:#2b6fe0}
+  button:hover{filter:brightness(1.08)}
   .hidden-input{position:absolute;left:-9999px;top:-9999px}
   .flash{animation:flash 600ms ease}
   @keyframes flash{0%{box-shadow:0 0 0 0 rgba(46,204,113,0)}40%{box-shadow:0 0 0 10px rgba(46,204,113,.25)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
@@ -24,45 +29,139 @@
   @keyframes flashOut{0%{box-shadow:0 0 0 0 rgba(243,156,18,0)}40%{box-shadow:0 0 0 10px rgba(243,156,18,.25)}100%{box-shadow:0 0 0 0 rgba(243,156,18,0)}}
   .flash-err{animation:flashErr 700ms ease}
   @keyframes flashErr{0%{box-shadow:0 0 0 0 rgba(231,76,60,0)}40%{box-shadow:0 0 0 12px rgba(231,76,60,.25)}100%{box-shadow:0 0 0 0 rgba(231,76,60,0)}}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:6vh 3vw;z-index:9999}
+  .modal .panel{width:min(800px,96vw);background:#121720;border:1px solid #1f2a3a;border-radius:18px;padding:24px}
+  .modal h2{margin:0 0 6px;font-size:28px}
+  .modal label{display:block;margin-top:12px;color:#cfd9e6}
+  .modal input[type=text],.modal input[type=password],.modal textarea, .modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #28405d;background:#0c1219;color:#e8eef4;font-size:16px}
+  .muted{color:var(--muted);font-size:14px}
+  .row-right{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .tiny{font-size:12px;color:#93a6bd;margin-top:8px}
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card" id="card">
       <div class="brand" id="brandText">Lindenwold Staff Sign In/Out</div>
+      <button class="gear" id="btnGear" title="Admin">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1v-.09a1.65 1.65 0 0 0-1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 4.42 7.6l.06.06A1.65 1.65 0 0 0 6.3 7.33 1.65 1.65 0 0 0 7.3 5.82V5.7a2 2 0 1 1 4 0v.09c0 .66.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.48.48-.62 1.2-.33 1.82.24.61.85 1 1.51 1v.09c.66 0 1.27.39 1.51 1Z"/>
+        </svg>
+      </button>
 
       <div class="title" id="titleText">Lindenwold Staff Sign In/Out</div>
       <div id="status" class="status">Waiting for swipe…</div>
       <div class="hint">Hold your fob to the reader. No need to touch the screen.</div>
+      <div class="tiny" id="defaultNote"></div>
+
+      <!-- Offline / slow network banner -->
+      <div id="netWarn" style="display:none;margin-top:8px;padding:8px 12px;border:1px solid #5a3a00;border-radius:10px;background:#2a1d00;color:#ffd9a1;font-size:16px;">
+        Network seems offline or slow. We’ll keep trying in the background…
+      </div>
+
       <div class="last" id="last"></div>
 
       <input id="rfidHidden" class="hidden-input" autofocus />
+      <div class="row">
+        <button id="btnRefocus">Refocus Scanner</button>
+        <button id="btnFullscreen">Full Screen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div class="modal" id="adminModal" aria-hidden="true">
+    <div class="panel">
+      <h2>Admin</h2>
+      <div class="muted">Enter PIN to unlock settings.</div>
+      <label>PIN
+        <input id="pin" type="password" placeholder="Enter admin PIN" />
+      </label>
+      <div class="row-right">
+        <button id="btnPinUnlock" class="primary">Unlock</button>
+        <button id="btnPinCancel">Cancel</button>
+      </div>
+
+      <div id="adminPanel" style="display:none; margin-top:16px;">
+        <label>Site (display name)</label>
+        <select id="siteSelect">
+          <option value="HS">Lindenwold HS Staff Sign In/Out</option>
+          <option value="MS">Lindenwold MS Staff Sign In/Out</option>
+          <option value="S4">Lindenwold S4 Staff Sign In/Out</option>
+          <option value="S5">Lindenwold S5 Staff Sign In/Out</option>
+          <option value="ECC">Lindenwold ECC Staff Sign In/Out</option>
+          <option value="DIST">Lindenwold Staff Sign In/Out (District)</option>
+        </select>
+
+        <label style="margin-top:10px;">Apps Script Web App URL
+          <input id="scriptUrl" type="text" placeholder="https://script.google.com/macros/s/XXXX/exec" />
+        </label>
+        <label>Admin Token (for Manual Reset)
+          <input id="token" type="password" placeholder="Exact token from code.gs" />
+        </label>
+        <div class="row" style="margin-top:8px;">
+          <button id="btnSave" class="primary">Save Settings</button>
+          <button id="btnClearSettings">Clear Settings</button>
+          <button id="btnManualReset">Run Manual Reset</button>
+          <button id="btnTest" title="Ping endpoint">Test Endpoint</button>
+        </div>
+        <div class="muted" style="margin-top:8px;">Active endpoint: <code id="activeUrl">(none)</code></div>
+      </div>
     </div>
   </div>
 
 <script>
-  // ===== Defaults (hard-wired) =====
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzjvp9PkwYxeHOVHl4SMFfTOh4drqaiQ6xQZR4qmKzfKgzKltvtMY2wsBBU1bhRE9H7sg/exec';
-
+  // ===== Site presets =====
   const SITES = {
-    HS: 'Lindenwold HS Staff Sign In/Out',
-    MS: 'Lindenwold MS Staff Sign In/Out',
-    S4: 'Lindenwold S4 Staff Sign In/Out',
-    S5: 'Lindenwold S5 Staff Sign In/Out',
-    ECC:'Lindenwold ECC Staff Sign In/Out',
-    DIST:'Lindenwold Staff Sign In/Out'
+    HS:   'Lindenwold HS Staff Sign In/Out',
+    MS:   'Lindenwold MS Staff Sign In/Out',
+    S4:   'Lindenwold S4 Staff Sign In/Out',
+    S5:   'Lindenwold S5 Staff Sign In/Out',
+    ECC:  'Lindenwold ECC Staff Sign In/Out',
+    DIST: 'Lindenwold Staff Sign In/Out'
   };
+  // Default site (can also set via ?site=HS)
   const DEFAULT_SITE = 'HS';
+
+  // ===== Defaults for this location (can be overridden in Admin) =====
+  // If you want it to work out-of-the-box, set these to your live values:
+  const DEFAULT_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzjvp9PkwYxeHOVHl4SMFfTOh4drqaiQ6xQZR4qmKzfKgzKltvtMY2wsBBU1bhRE9H7sg/exec';
+  const DEFAULT_ADMIN_TOKEN = 'asdfghjkl';
+
+  // ===== Config =====
+  const ADMIN_UI_PIN = '1234';
+  const GAP_MS = 80;
+  const MAX_LEN = 128;
+  const REQ_TIMEOUT_MS = 8000;
+  const AUTO_REFOCUS_MS = 20000;
 
   // ===== Elements =====
   const brandEl = document.getElementById('brandText');
   const titleEl = document.getElementById('titleText');
   const statusEl = document.getElementById('status');
   const lastEl = document.getElementById('last');
+  const defaultNoteEl = document.getElementById('defaultNote');
   const hiddenInput = document.getElementById('rfidHidden');
+  const btnRefocus = document.getElementById('btnRefocus');
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnGear = document.getElementById('btnGear');
+  const adminModal = document.getElementById('adminModal');
+  const adminPanel = document.getElementById('adminPanel');
+  const pinInput = document.getElementById('pin');
+  const btnPinUnlock = document.getElementById('btnPinUnlock');
+  const btnPinCancel = document.getElementById('btnPinCancel');
+  const urlEl = document.getElementById('scriptUrl');
+  const tokEl = document.getElementById('token');
+  const btnSave = document.getElementById('btnSave');
+  const btnClearSettings = document.getElementById('btnClearSettings');
+  const btnManualReset = document.getElementById('btnManualReset');
+  const btnTest = document.getElementById('btnTest');
+  const activeUrlEl = document.getElementById('activeUrl');
+  const siteSelect = document.getElementById('siteSelect');
   const card = document.getElementById('card');
 
-  // ===== Site resolve =====
+  // ===== Persistence & site rendering =====
   function getQuerySite(){
     const m = (location.search.match(/[?&]site=([^&]+)/i) || [])[1];
     return m ? decodeURIComponent(m).toUpperCase() : '';
@@ -70,20 +169,56 @@
   function getSiteKey(){
     const fromQuery = getQuerySite();
     if (fromQuery && SITES[fromQuery]) return fromQuery;
+    const stored = (localStorage.getItem('siteKey')||'').toUpperCase();
+    if (stored && SITES[stored]) return stored;
     return DEFAULT_SITE;
   }
+  function setSiteKey(k){ if(SITES[k]) localStorage.setItem('siteKey', k); renderSite(); }
   function renderSite(){
     const key = getSiteKey();
     const label = SITES[key] || SITES[DEFAULT_SITE];
     brandEl.textContent = label;
     titleEl.textContent = label;
+    if (siteSelect) siteSelect.value = key;
   }
 
-  // ===== Networking =====
-  const REQ_TIMEOUT_MS = 8000;
-  const GAP_MS = 80;
-  const MAX_LEN = 128;
+  function getScriptUrl(){
+    const fromUI = (urlEl && urlEl.value||'').trim();
+    if (fromUI) return fromUI;
+    const stored = (localStorage.getItem('scriptUrl')||'').trim();
+    return stored || DEFAULT_SCRIPT_URL;
+  }
+  function setScriptUrl(v){ localStorage.setItem('scriptUrl', String(v||'').trim()); refreshActiveUrl(); renderDefaultNote(); }
+  function getAdminToken(){
+    const fromUI = (tokEl && tokEl.value||'').trim();
+    if (fromUI) return fromUI;
+    const stored = (localStorage.getItem('adminToken')||'').trim();
+    return stored || DEFAULT_ADMIN_TOKEN;
+  }
+  function setAdminToken(v){ if(v) localStorage.setItem('adminToken', String(v||'').trim()); else localStorage.removeItem('adminToken'); renderDefaultNote(); }
+  function refreshActiveUrl(){ if(activeUrlEl) activeUrlEl.textContent = getScriptUrl() || '(none)'; }
+  function renderDefaultNote(){
+    const usingDefaults = (!localStorage.getItem('scriptUrl')) || (!localStorage.getItem('adminToken'));
+    defaultNoteEl.textContent = usingDefaults ? 'Using default site settings (change in Admin if needed).' : '';
+  }
 
+  // Keep Apps Script warm (reduce cold start)
+  setInterval(() => {
+    const url = getScriptUrl();
+    if (!url) return;
+    fetch(url, { method: 'GET' }).catch(()=>{});
+  }, 60000);
+
+  // Network banner
+  function setNetBanner(){
+    const b = document.getElementById('netWarn');
+    if (!b) return;
+    b.style.display = navigator.onLine ? 'none' : 'block';
+  }
+  window.addEventListener('online',  setNetBanner);
+  window.addEventListener('offline', setNetBanner);
+
+  // ===== Normalizer & masking =====
   function normalizeTag(s){ return String(s||'').trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,''); }
   function maskTag(s){
     const digits = String(s||'').replace(/\D/g,'');
@@ -91,31 +226,53 @@
     return '•••• ' + (last4 || '0000');
   }
 
-  function showPending(t){ statusEl.textContent = t; statusEl.className='status'; }
-  function showError(msg){ statusEl.textContent=msg; statusEl.className='status err'; flash('err'); }
-  function showResponse(text){
-    const t = String(text||'');
-    if(/Logged\s+in\b/i.test(t)){ statusEl.textContent=t; statusEl.className='status ok'; flash('in'); }
-    else if(/Logged\s+out\b/i.test(t)){ statusEl.textContent=t; statusEl.className='status out'; flash('out'); }
-    else if(/Unauthorized|Error|Missing|Already reset today/i.test(t)){ statusEl.textContent=t; statusEl.className='status err'; flash('err'); }
-    else { statusEl.textContent=t || 'Waiting for swipe…'; statusEl.className='status'; }
-  }
-  function flash(kind){
-    card.classList.remove('flash','flash-out','flash-err');
-    void card.offsetWidth;
-    if(kind==='in') card.classList.add('flash');
-    else if(kind==='out') card.classList.add('flash-out');
-    else card.classList.add('flash-err');
+  // ===== Auto-clear after 5s =====
+  let clearTimer = null;
+  function scheduleClear() {
+    clearTimeout(clearTimer);
+    clearTimer = setTimeout(() => {
+      statusEl.textContent = 'Waiting for swipe…';
+      statusEl.className = 'status';
+      lastEl.textContent = '';
+    }, 5000);
   }
 
-  async function tryFetchWithRetry(url, body, retries, backoffsMs){
+  // ===== Submit to Apps Script (optimistic UI + retry + warm-up) =====
+  async function submitTag(raw){
+    const url = getScriptUrl();
+    const tag = normalizeTag(raw);
+    if(!url){ showError('Set the Apps Script Web App URL in Admin > Save Settings.'); return; }
+    if(!tag){ showError('Invalid swipe.'); return; }
+
+    showPending(`Swipe received… (${maskTag(tag)})`);
+    const t0 = performance.now();
+
+    try{
+      const text = await tryFetchWithRetry(url, tag, getSiteKey(), 2, [300, 800]);
+      showResponse(text);
+      lastEl.textContent = `Response in ${Math.round(performance.now()-t0)} ms — ${new Date().toLocaleTimeString()}`;
+      setNetBanner();
+    }catch(err){
+      const warmed = await warmAndRetry(url, tag, getSiteKey()).catch(()=>null);
+      if (warmed) {
+        showResponse(warmed);
+        lastEl.textContent = `Recovered after warm-up — ${new Date().toLocaleTimeString()}`;
+      } else {
+        showError('Taking longer than expected. Check Wi-Fi or try again.');
+        setNetBanner();
+      }
+    }
+  }
+
+  // Helper: fetch with timeout + retries
+  async function tryFetchWithRetry(url, tag, site, retries, backoffsMs){
     const doPost = () => {
       const ctrl = new AbortController();
       const timer = setTimeout(()=>ctrl.abort(), REQ_TIMEOUT_MS);
       return fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body,
+        body:new URLSearchParams({tag, site}),
         signal: ctrl.signal
       }).finally(()=>clearTimeout(timer));
     };
@@ -138,45 +295,52 @@
     throw lastErr;
   }
 
-  async function warmAndRetry(url, body){
+  // Helper: warm up with a GET, then try one last POST
+  async function warmAndRetry(url, tag, site){
     try{ await fetch(url, { method:'GET' }); }catch{}
     try{
-      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+      const r = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({tag, site})
+      });
       return await r.text();
-    }catch(e){ return null; }
+    }catch(e){
+      return null;
+    }
   }
 
-  async function submitTag(raw){
-    const url = DEFAULT_SCRIPT_URL + `?site=${encodeURIComponent(getSiteKey())}`;
-    const tag = normalizeTag(raw);
-    if(!tag){ showError('Invalid swipe.'); return; }
-
-    showPending(`Swipe received… (${maskTag(tag)})`);
-    const t0 = performance.now();
-
-    const body = new URLSearchParams({ tag });
-
-    try{
-      const text = await tryFetchWithRetry(url, body, 2, [300, 800]);
-      showResponse(text);
-      lastEl.textContent = `Response in ${Math.round(performance.now()-t0)} ms — ${new Date().toLocaleTimeString()}`;
-    }catch(err){
-      const warmed = await warmAndRetry(url, body).catch(()=>null);
-      if (warmed) {
-        showResponse(warmed);
-        lastEl.textContent = `Recovered after warm-up — ${new Date().toLocaleTimeString()}`;
-      } else {
-        showError('Taking longer than expected. Check Wi-Fi or try again.');
-      }
-    }
+  // ===== UI helpers =====
+  function showPending(t){ statusEl.textContent = t; statusEl.className='status'; }
+  function showResponse(text){
+    const t = String(text||'');
+    if(/Logged\s+in\b/i.test(t)){ statusEl.textContent=t; statusEl.className='status ok'; flash('in'); }
+    else if(/Logged\s+out\b/i.test(t)){ statusEl.textContent=t; statusEl.className='status out'; flash('out'); }
+    else if(/Unauthorized|Error|Missing|Already reset today/i.test(t)){ statusEl.textContent=t; statusEl.className='status err'; flash('err'); }
+    else { statusEl.textContent=t || 'Waiting for swipe…'; statusEl.className='status'; }
+    scheduleClear(); // auto-clear after 5s
+  }
+  function showError(msg){
+    statusEl.textContent=msg; statusEl.className='status err'; flash('err');
+    scheduleClear(); // auto-clear after 5s
+  }
+  function flash(kind){
+    card.classList.remove('flash','flash-out','flash-err');
+    void card.offsetWidth;
+    if(kind==='in') card.classList.add('flash');
+    else if(kind==='out') card.classList.add('flash-out');
+    else card.classList.add('flash-err');
   }
 
   // ===== Global capture with idle-submit =====
   let buf=''; let lastTs=0; let submitTimer=null;
+  function isEditable(el){ if(!el) return false; if(el.isContentEditable) return true; const t=el.tagName; return t==='INPUT'||t==='TEXTAREA'||t==='SELECT'; }
   function scheduleIdleSubmit(){ clearTimeout(submitTimer); submitTimer=setTimeout(()=>{ const out=normalizeTag(buf); buf=''; if(out) submitTag(out); }, GAP_MS); }
 
   document.addEventListener('keydown', (evt) => {
-    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf=''; lastTs = now;
+    if(isEditable(evt.target) && evt.target.id!=='rfidHidden') return;
+    const now = performance.now(); const gap = now - lastTs; if(gap > GAP_MS) buf='';
+    lastTs = now;
     if(/^[A-Za-z0-9.\-]$/.test(evt.key)){ if(buf.length<MAX_LEN) buf += evt.key; scheduleIdleSubmit(); evt.preventDefault(); }
     else if(evt.key==='Enter' || evt.key==='Tab'){ clearTimeout(submitTimer); const out=normalizeTag(buf); buf=''; if(out) submitTag(out); evt.preventDefault(); }
   });
@@ -185,12 +349,75 @@
     if(e.key==='Enter' || e.key==='Tab'){ const out=normalizeTag(hiddenInput.value); hiddenInput.value=''; if(out) submitTag(out); e.preventDefault(); }
   });
 
-  // Init
+  // ===== Admin modal =====
+  function openAdmin() {
+    adminModal.style.display = 'flex';
+    document.body.dataset.adminOpen = '1';
+    urlEl.value = localStorage.getItem('scriptUrl') || '';
+    tokEl.value = localStorage.getItem('adminToken') || '';
+    siteSelect.value = getSiteKey();
+    adminPanel.style.display = 'none';
+    pinInput.value = '';
+    setTimeout(()=>pinInput.focus(),50);
+  }
+  function closeAdmin() {
+    adminModal.style.display = 'none';
+    delete document.body.dataset.adminOpen;
+    window.focus(); document.body.focus(); hiddenInput.focus();
+  }
+  btnGear.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openAdmin(); });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.ctrlKey && ev.shiftKey && (ev.key==='A' || ev.key==='a')) { ev.preventDefault(); openAdmin(); }
+  });
+  if (location.hash === '#admin') window.addEventListener('load', openAdmin);
+  btnPinCancel.addEventListener('click', closeAdmin);
+  btnPinUnlock.addEventListener('click', () => {
+    if ((pinInput.value||'') === ADMIN_UI_PIN) {
+      adminPanel.style.display = '';
+      refreshActiveUrl();
+    } else { alert('Incorrect PIN'); pinInput.select(); }
+  });
+
+  btnSave.addEventListener('click', () => {
+    const v=(urlEl.value||'').trim(); if(!v) return alert('Enter your Apps Script Web App URL');
+    setScriptUrl(v);
+    setAdminToken((tokEl.value||'').trim());
+    setSiteKey(siteSelect.value);
+    showPending('Settings saved. Waiting for swipe…');
+    hiddenInput.focus();
+  });
+  btnClearSettings.addEventListener('click', () => {
+    localStorage.removeItem('scriptUrl'); localStorage.removeItem('adminToken'); localStorage.removeItem('siteKey');
+    urlEl.value=''; tokEl.value=''; siteSelect.value=DEFAULT_SITE; refreshActiveUrl(); renderDefaultNote(); renderSite();
+    showPending('Settings cleared. Using defaults.');
+  });
+  btnManualReset.addEventListener('click', async () => {
+    const url = getScriptUrl(); const token = getAdminToken();
+    if(!url) return alert('Set and save the Web App URL first.');
+    if(!token) return alert('Enter the admin token.');
+    showPending('Running manual reset…');
+    try{
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'reset',token,site:getSiteKey()})});
+      showResponse(await r.text());
+    }catch{ showError('Error running manual reset.'); }
+  });
+  btnTest.addEventListener('click', async () => {
+    const url=getScriptUrl(); if(!url) return alert('Set your Web App URL first.');
+    showPending('Pinging endpoint…');
+    try{ const r=await fetch(url,{method:'GET'}); const txt=await r.text(); showResponse(txt||'OK'); }
+    catch{ showError('Endpoint not reachable. Check URL/network.'); }
+  });
+
+  // Keep scanner focused & set banner/site on load
   window.addEventListener('load', () => {
     renderSite();
     window.focus(); document.body.focus(); hiddenInput.focus();
+    refreshActiveUrl(); renderDefaultNote(); setNetBanner();
   });
-  setInterval(() => { window.focus(); document.body.focus(); hiddenInput.focus(); }, 20000);
+  setInterval(() => {
+    if (document.body.dataset.adminOpen === '1') return;
+    window.focus(); document.body.focus(); hiddenInput.focus();
+  }, AUTO_REFOCUS_MS);
 </script>
 </body>
 </html>
